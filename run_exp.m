@@ -123,14 +123,14 @@ metric_name = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'..
     ;'Precision'};
 metric_values = [TP;FP;TN;FN;f1;acc;spec;sen;ppv];
 
-Summary1.configuration = config;
-Summary1.car_following_para = idm_para;
-Summary1.anomaly = AnomalyConfig;
-Summary1.results = table(metric_name,metric_values);
-summary(Summary1.results)
+Summary.configuration = config;
+Summary.car_following_para = idm_para;
+Summary.anomaly = AnomalyConfig;
+Summary.results = table(metric_name,metric_values);
+summary(Summary.results)
 
-filename = 'Summary1.mat';
-save(filename,'Summary1')
+filename = 'Summary.mat';
+save(filename,'Summary')
 
 
 %% Plotting
