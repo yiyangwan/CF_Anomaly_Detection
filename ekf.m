@@ -65,7 +65,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     error1 = 0;
     
     y_hat = h(x_hat);
-    y_tilde = y - y_hat;        % innovation
+    y_tilde = y - y_hat;        % innovation    
     p.y_tilde = y_tilde;
     
     t = del_h(x_hat);           % 1st Jacobian
@@ -75,16 +75,20 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     
     p.innov = abs(S.^(0.5)) \ y_tilde;
 
-    K = tmp/(S+eps);            % Kalman gain
+    K = tmp/(S+2*eps);            % Kalman gain
     
-    p.chi = y_tilde'/(S+eps)*y_tilde; % chi-square statistics
+    p.chi = y_tilde'/(S+2*eps)*y_tilde; % chi-square statistics
     
     if(~OCSVM)
         
         if (p.chi >= r)
             error1 = 1;
-            x_dgr = groundtruth;
-%             x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+            
+            if(config.use_predict)
+                x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+            else
+                x_dgr = groundtruth;
+            end
         else 
             x_dgr = x_hat + K* y_tilde;
         end
@@ -106,14 +110,21 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
         
         if(score_1d < 0)
             error1 = 1;
-            x_dgr = groundtruth;
-%             x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+            
+            if(config.use_predict)
+                x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+            else
+                x_dgr = groundtruth;
+            end
         else 
             x_dgr = x_hat + K* y_tilde;
         end
         p.score = score_1d;
     end
-
+    
+    y_residual = y - h(x_dgr); % residual between the actual measurement and its estimated value
+    p.residual = y_residual;
+    
     CF_his1 = @(tt) CF_his(tt,x_dgr);  % store current state estimate to compute the next prediction     
 %     x_next = f(x_dgr);
     sol_x = dde23(f1,tau,CF_his1,[tk1,tk2]); % solve DDE of state variable 
@@ -125,6 +136,8 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1); % store current covariance estimate to compute the next prediction
     sol_P = dde23(f_del1,tau,P_his_1,[tk1,tk2]); % solve DDE of covariance matrix P
     P_next = reshape(sol_P.y(:,end),2,2);
+    
+    p.RMSE = sqrt(mean((groundtruth - x_dgr).^2));  % Root Mean Squared Error
     
 else
     error('f, h, del_f, del_h, CF_his and P_his should be function handles')

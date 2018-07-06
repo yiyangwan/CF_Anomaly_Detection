@@ -49,6 +49,7 @@ idm_para.a_max = 0.1; % max acceleration of random term
 idm_para.a_min = -0.1; % max deceleration of random term
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
+AnomalyConfig.seed = 10; % random seed controler
 
 for i = 1:m1
     % Config data structure================================================

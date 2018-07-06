@@ -20,7 +20,7 @@ vl = u(2);
 % a_max = 0.73; a_min = -9.65;
 a_max = idm_para.a_max; a_min = idm_para.a_min;
 a_random = sqrt(a_max - a_min)*randn + (a_max+a_min)/2; % generate acceleration during time delay as 
-% a uniform distributed random variable within the range [a_min, a_max], 
+% a normal distributed random variable within the range [a_min, a_max], 
 % where a_min = -9.65m^2/s, a_max = 0.73m^2/s
 
 
@@ -35,9 +35,9 @@ T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
 
 % v_1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*t*delta_t;
-v_1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*tau;
-x_1 = vf * delta_t + xf;
-s1 = [x_1;v_1];
+v_f1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*tau;
+x_f1 = vf * delta_t + xf;
+s1 = [x_f1;v_f1];
 end
 
 function s = distance(vf,delta_v,a,b,T,s0)

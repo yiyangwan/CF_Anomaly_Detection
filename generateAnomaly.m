@@ -14,7 +14,7 @@ function [s_la, s_fa, AnomalyConfig] = generateAnomaly(s_l, s_f, AnomalyConfig)
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftMax: Drift type anomaly max value
 
-rng(20); % control random number generator so that it can produce predictable random numbers
+rng(AnomalyConfig.seed); % control random number generator so that it can produce predictable random numbers
 
 anomaly_type = AnomalyConfig.anomaly_type;
 num_type = numel(anomaly_type); % number of anomaly types

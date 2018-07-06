@@ -41,7 +41,13 @@ N = config.N; % Time window length for Adaptive EKF
 N_ocsvm = config.N_ocsvm; % Time window length for OCSVM
 
 Ccum = diag(zeros(m,1)); % initial weighted sum of outer product of innovation
-vlist = zeros(m,m,N); % Stack for innovation sequence with length N
+Ucum = diag(zeros(m,1)); % initial estimated measurement noises covariance matrix
+vlist = zeros(m,m,N); % stack for innovation sequence with length N
+ulist = zeros(m,m,N); % stack for residual sequence with length N
+psum = zeros(m,1); % initial sum of N_ocsvm-1 normalized innovation
+
+p.rmse = zeros(m,1); % stack to store RMSE vector
+
 % v_1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*t*delta_t;
 % x_1 = vf * (delta_t*t) + xf;
 
@@ -67,20 +73,33 @@ end
 h = @(s) H*s; % function handle for measurement model
 del_h = @(s) H; % function handle for the Jacobian of motion model
 
-psum = zeros(m,1); % initial sum of N_ocsvm-1 normalized innovation
-
 
 for i = 1:n_sample
     [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i),groundtruth(:,i),@CF_his,@P_his,(i-1)*delta_t,i*delta_t,config,psum);
     
     vlist(:,:,1:N-1) = vlist(:,:,2:end); %shift left
     vlist(:,:,N) = p1.y_tilde*p1.y_tilde';
+    
+    ulist(:,:,1:N-1) = ulist(:,:,2:end); %shift left
+    ulist(:,:,N) = p1.residual*p1.residual';
+    
+    p.rmse(i) = p1.RMSE;
+    % Adaptively estimate covariance matrices Q and R based on innovation
+    % and residual sequences
     for j = 1:N
        Ccum = Ccum + config.weight(j) * squeeze(vlist(:,:,j));
+       Ucum = Ucum + config.weight(j) * ( squeeze(ulist(:,:,j)) + config.H * P_next * config.H' );    
     end
     
+    if(config.adptQ)
     config.Q = K*Ccum*K'; % compute adaptively Q based on innovation sequence
-    Ccum = diag(zeros(m,1)); % clear sum every loop
+    end
+    if(config.adptR)
+    config.R = Ucum; % compute adaptively R based on residual sequence
+    end
+    
+    Ccum = diag(zeros(m,1)); % reset sum every loop
+    Ucum = diag(zeros(m,1)); % reset sum every loop
     
     shat(:,i)= x_dgr;
     error_idx(i) = error1;
