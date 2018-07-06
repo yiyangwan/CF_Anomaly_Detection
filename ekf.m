@@ -58,8 +58,10 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     OCSVM = config.OCSVM;
     r = config.r;
     
+
     f1 = @(tt,ss,ZZ) f(tt,ss,u,ZZ);
-    
+
+        
     error1 = 0;
     
     y_hat = h(x_hat);
@@ -82,6 +84,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
         if (p.chi >= r)
             error1 = 1;
             x_dgr = groundtruth;
+%             x_dgr = x_hat; % if anomaly detected, use predict as estimate 
         else 
             x_dgr = x_hat + K* y_tilde;
         end
@@ -104,6 +107,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
         if(score_1d < 0)
             error1 = 1;
             x_dgr = groundtruth;
+%             x_dgr = x_hat; % if anomaly detected, use predict as estimate 
         else 
             x_dgr = x_hat + K* y_tilde;
         end

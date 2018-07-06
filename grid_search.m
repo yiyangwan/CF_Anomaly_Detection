@@ -1,7 +1,9 @@
 clear
+clc
 
-load rawdata.mat % info of the leading vehicle = s
-load following_state.mat % info of the following vehicle = s_f
+dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
+load(strcat(dataPath,'rawdata.mat')); % info of the leading vehicle = s
+load(strcat(dataPath,'following_state.mat')); % info of the following vehicle = s_f
 raw_data   = s;
 
 ini = IniConfig();
@@ -32,6 +34,9 @@ config.R = diag([1,0.5]);
 config.Q = diag([0.8,0.05]);
 config.H = eye(2);
 config.delta_t = 0.1;
+
+weight_vector = [3,7];
+config.weight = weight_vector./sum(weight_vector); % weights for AdEKF when time window size is 2
 
 % IDM CF model parameter===================================================
 idm_para.a = 0.73; % maximum acceleration
@@ -65,7 +70,15 @@ for i = 1:m1
     AnomalyConfig.BiasVar = diag(values{10}{AllCombine(i,10)});
     AnomalyConfig.DriftMax = values{11}{AllCombine(i,11)};
     
+    config.use_CF = values{11}{AllCombine(i,12)}; % use CF model or not
+    
     Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data);
-    filename = strcat('D:\research\CF_detection\results\' , sprintf('Summary_%d.txt',i)); 
+    path = 'D:\research\CF_detection\results\'; % result files location
+    filename = strcat( path , sprintf('Summary_%d.txt',i)); 
     writetable(Summary{i}.results,filename)
+    
+    fprintf('Run %d:\n',i);
+    disp(config); disp(AnomalyConfig);
+    fprintf('results');
+    disp(Summary{i}.results);
 end  

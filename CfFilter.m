@@ -40,17 +40,24 @@ P_hat = diag(ones(2,1)); % initial state prediction covariance for EKF
 N = config.N; % Time window length for Adaptive EKF
 N_ocsvm = config.N_ocsvm; % Time window length for OCSVM
 
+Ccum = diag(zeros(m,1)); % initial weighted sum of outer product of innovation
 vlist = zeros(m,m,N); % Stack for innovation sequence with length N
 % v_1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*t*delta_t;
 % x_1 = vf * (delta_t*t) + xf;
 
-s_f = s_f + 0.5*randn(m,n_sample);
+s_f = s_f + config.R*randn(m,n_sample); % add noise into measurement
 
 H = config.H; % measurement matrix
 
-f = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para); % function handle for motion model
-del_f = @(ss,uu) CF_idm_der(ss,uu,idm_para); % function handle for the Jacobian of motion model
+if(config.use_CF)
+    f = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para); % function handle for motion model
+    del_f = @(ss,uu) CF_idm_der(ss,uu,idm_para); % function handle for the Jacobian of motion model
 
+else
+    f = @(tt,ss,uu,ZZ) non_CF(tt,ss,ZZ); % function handle for motion model without considering CF model
+    del_f = @(ss,uu) non_CF_der(ss); % function handle for the Jacobian of motion model without considering CF model
+
+end
 % syms sss1 sss2 uuu1 uuu2
 % syms_CF_idm2 = CF_idm2([sss1;sss2],[uuu1,uuu2],idm_para);
 % syms_del_f = jacobian(syms_CF_idm2,[sss1;sss2]);
@@ -62,13 +69,18 @@ del_h = @(s) H; % function handle for the Jacobian of motion model
 
 psum = zeros(m,1); % initial sum of N_ocsvm-1 normalized innovation
 
+
 for i = 1:n_sample
     [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i),groundtruth(:,i),@CF_his,@P_his,(i-1)*delta_t,i*delta_t,config,psum);
     
-%     vlist(:,:,1:N-1) = vlist(:,:,2:end); %shift left
-%     vlist(:,:,N) = p.y_tilde*p.y_tilde';
-%     Ccum = 1/N*reshape(sum(vlist,3),m,m); % compute adaptively Q based on innovation sequence
-%     config.Q = K*Ccum*K';
+    vlist(:,:,1:N-1) = vlist(:,:,2:end); %shift left
+    vlist(:,:,N) = p1.y_tilde*p1.y_tilde';
+    for j = 1:N
+       Ccum = Ccum + config.weight(j) * squeeze(vlist(:,:,j));
+    end
+    
+    config.Q = K*Ccum*K'; % compute adaptively Q based on innovation sequence
+    Ccum = diag(zeros(m,1)); % clear sum every loop
     
     shat(:,i)= x_dgr;
     error_idx(i) = error1;
@@ -85,7 +97,7 @@ for i = 1:n_sample
     
     x_hat = x_next;
     P_hat = P_next;
-    
+    % Ignore warining 
     [~, MSGID] = lastwarn();
     if(~isempty(MSGID))
         warning('off', MSGID);
@@ -107,7 +119,7 @@ P_his = P_hat;
 end
 
 function s_d = CF_idm(t,s,u,Z,idm_para)
-% This function inplements IDM CF model with time delay t.
+% This function inplements IDM CF model with time delay tau.
 %   The differential equations
 %
 %        s'_1(t) = s_2(t-0.1)
@@ -131,6 +143,15 @@ s_d   = [ slag1(2);
           a*(1 - (slag1(2)/v0)^sigma - (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)))^2)];
 end
 
+function s_d = non_CF(t,s,Z)
+% This function inplements non_CF motion model with time delay.
+
+slag1 = Z(:,1);
+
+s_d = [slag1(2);
+       0];
+end
+
 function s_der = CF_idm_der(s,u,idm_para)
 % Jacobian of motion model
 
@@ -142,8 +163,14 @@ s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
 
-s_der = [0, 1; a*(1-(s0+s(2)*T )-((s(2)*(s(2)-u(2)))/(2*sqrt(a*b)) )^2 * (-2) * (u(1)-s(1))^(-3) ), ...
-    a*(1 - sigma*(1/v0)^(sigma-1) - (1/(u(1) - s(1)) )^2 *2 * (s0 + s(2)*T+ (s(2)*(s(2)-u(2))/2/sqrt(a*b) ) * (T + 1/sqrt(a*b)/2 * (2*s(2) - u(2)) ) ) )];
+s_der = [0, 1; a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1))^(-3) ), ...
+    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)) )^2 * (s0 + s(2)*T+ ( s(2)*(s(2)-u(2))/2/sqrt(a*b) ) ) * (T + 1/sqrt(a*b)/2 * (2*s(2) - u(2)) ) ) ];
+end
+
+function s_der = non_CF_der(s)
+% Jacobian of motion model without considering CF model
+
+s_der = [0,1;0,0];
 end
 
 function s = distance(vf,delta_v,a,b,T,s0)

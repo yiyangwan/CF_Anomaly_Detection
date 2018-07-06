@@ -1,4 +1,7 @@
 function [Summary] = mainFunction(config,idm_para,AnomalyConfig,raw_data)
+
+rng(20); % control the random generator so that it generates predictable random number
+
 %% Generate baseline data
 [x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l
 
