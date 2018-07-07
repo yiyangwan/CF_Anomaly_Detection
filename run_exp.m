@@ -6,13 +6,13 @@ load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s
 raw_data   = s;
 
 % Config data structure====================================================
-config.OCSVM = false; % if true, then use OCSVM instead of Chi-square detector
+config.OCSVM = true; % if true, then use OCSVM instead of Chi-square detector
 config.adptQ = true; % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR = false; % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF = true; % true if using CF model
 config.use_predict = false; % true if replacing estimate as predict when anomaly detected
 
-config.OCSVM_threshold = [3; 4; 5]; % OCSVM model threshold for training
+config.OCSVM_threshold = [5; 8; 10]; % OCSVM model threshold for training
 config.R = diag([0.01,0.01]); % observation noise covariance
 config.Q = diag([0.5,0.2]); % process noise covariance
 config.H = eye(2); % observation matrix
