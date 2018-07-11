@@ -87,12 +87,12 @@ for i = 1:n_sample
     % Adaptively estimate covariance matrices Q and R based on innovation
     % and residual sequences
     for j = 1:N
-       Ccum = Ccum + config.weight(j) * squeeze(vlist(:,:,j));
+       Ccum = Ccum + config.weight(j) * (K*squeeze(vlist(:,:,j))*K');
        Ucum = Ucum + config.weight(j) * ( squeeze(ulist(:,:,j)) + config.H * P_next * config.H' );    
     end
     
     if(config.adptQ)
-    config.Q = K*Ccum*K'; % compute adaptively Q based on innovation sequence
+    config.Q = Ccum; % compute adaptively Q based on innovation sequence
     end
     if(config.adptR)
     config.R = Ucum; % compute adaptively R based on residual sequence
