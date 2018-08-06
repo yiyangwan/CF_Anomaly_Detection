@@ -1,6 +1,9 @@
 clear
 close all
-load('rawdata.mat')
+dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
+load(strcat(dataPath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
+load(strcat(dataPath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
+
 raw_data   = s;
 [x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l
 
@@ -28,7 +31,7 @@ config.H = eye(2); % observation matrix
 config.N = 15; % Time window length for AdEKF
 config.r = 5; % Chi-square detector parameter
 config.delta_t = 0.1; % sensor sampling time interval in seconds
-config.tau = 0.01; % time delay
+config.tau = 0.7; % time delay
 config.N_ocsvm = 15; % Time window length for OCSVM
 
 tau = config.tau; % human/sensor reaction time delay with unit "s"
@@ -42,6 +45,6 @@ save('following_state.mat','s_f')
 
 %% plot
 subplot(211)
-plot(v_l);hold on; plot(v_f);legend('leading','following');
+plot(v_l);hold on; plot(v_f);legend('leading','following','Location','southeast'); xlabel('Time epoch ($\times$ms)', 'Interpreter','latex'), ylabel('Speed ($\times$m/s)', 'Interpreter','latex'); xlim([0,2000])
 subplot(212)
-plot(x_l);hold on; plot(x_f);legend('leading','following');
+plot(x_l);hold on; plot(x_f);legend('leading','following','Location','southeast');xlabel('Time epoch ($\times$ms)', 'Interpreter','latex'), ylabel('Distance ($\times$m)', 'Interpreter','latex'); xlim([0,2000])

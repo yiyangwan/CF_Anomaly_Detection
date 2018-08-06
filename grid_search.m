@@ -2,9 +2,9 @@ clear
 clc
 
 dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
-load(strcat(dataPath,'rawdata.mat')); % info of the leading vehicle = s
-load(strcat(dataPath,'following_state.mat')); % info of the following vehicle = s_f
-raw_data   = s;
+load(strcat(dataPath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
+load(strcat(dataPath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
+raw_data   = s_train;
 
 ini = IniConfig();
 ini.ReadFile('config.ini');
@@ -34,6 +34,9 @@ config.R = diag([1,0.5]);
 config.Q = diag([0.8,0.05]);
 config.H = eye(2);
 config.delta_t = 0.1;
+config.adptQ = true;
+config.adptR = false;
+config.use_predict = false;
 
 weight_vector = [3,7];
 config.weight = weight_vector./sum(weight_vector); % weights for AdEKF when time window size is 2
@@ -45,8 +48,8 @@ idm_para.sigma = 4; % acceleration exponent
 idm_para.s0 = 2; % minimum distance (m)
 idm_para.T = 1.5; % safe time headway (s)
 idm_para.v0 = 24; % desired velocity (m/s)
-idm_para.a_max = 0.1; % max acceleration of random term 
-idm_para.a_min = -0.1; % max deceleration of random term
+idm_para.a_max = 0.0; % max acceleration of random term 
+idm_para.a_min = -0.0; % max deceleration of random term
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
 AnomalyConfig.seed = 10; % random seed controler
@@ -71,9 +74,9 @@ for i = 1:m1
     AnomalyConfig.BiasVar = diag(values{10}{AllCombine(i,10)});
     AnomalyConfig.DriftMax = values{11}{AllCombine(i,11)};
     
-    config.use_CF = values{11}{AllCombine(i,12)}; % use CF model or not
+    config.use_CF = values{12}{AllCombine(i,12)}; % use CF model or not
     
-    Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data);
+    Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data,s);
     path = 'D:\research\CF_detection\results\'; % result files location
     filename = strcat( path , sprintf('Summary_%d.txt',i)); 
     writetable(Summary{i}.results,filename)

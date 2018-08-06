@@ -43,7 +43,7 @@ for i = 1:n_sample
                 case 'Bias'
                     s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + msk.*AnomalyConfig.BiasVar * randn(m,1);
                 case 'Drift'
-                    s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + (2*randi(2,2,1)-3).*msk.*[linspace(0,randi(AnomalyConfig.DriftMax(1)),dur_length);linspace(0,randi(AnomalyConfig.DriftMax(2)),dur_length)];
+                    s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + (2*randi(2,2,1)-3).*msk.*[linspace(0,rand*(AnomalyConfig.DriftMax(1)),dur_length);linspace(0,rand*(AnomalyConfig.DriftMax(2)),dur_length)];
             end
         end
         end

@@ -1,10 +1,11 @@
 clear
 
 filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
-load(strcat(filePath,'rawdata.mat')) % info of the leading vehicle = s
-load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
-raw_data   = s;
-
+load(strcat(filePath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
+load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
+% load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
+raw_data   = s_train;
+% s = s_train;
 % Config data structure====================================================
 config.OCSVM = true; % if true, then use OCSVM instead of Chi-square detector
 config.adptQ = true; % if true, then adaptively estimate process noise covariance matrix Q
@@ -12,15 +13,16 @@ config.adptR = false; % if true, then adaptively estimate measurement noise cova
 config.use_CF = true; % true if using CF model
 config.use_predict = false; % true if replacing estimate as predict when anomaly detected
 
-config.OCSVM_threshold = [5; 8; 10]; % OCSVM model threshold for training
+config.OCSVM_threshold = [0.02; 0.5 ; 1]; % OCSVM model threshold for training
 config.R = diag([0.01,0.01]); % observation noise covariance
 config.Q = diag([0.5,0.2]); % process noise covariance
 config.H = eye(2); % observation matrix
-config.r = 5; % Chi-square detector parameter
+config.r = 0.02; % Chi-square detector parameter
 config.delta_t = 0.1; % sensor sampling time interval in seconds
-config.tau = 0.01; % time delay
+config.tau = 1.5; % time delay
 config.N_ocsvm = 10; % Time window length for OCSVM
 config.N = 2; % time window length for AdEKF
+config.plot = true; % true if generate plots
 
 weight_vector = [3,7]; % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -48,16 +50,16 @@ idm_para.a_min = -0.00; % max deceleration of random term
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent = 0.000;
+AnomalyConfig.percent = 0.005;
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length = 20;
-AnomalyConfig.NoiseVar = diag(sqrt([50,10]));
-AnomalyConfig.BiasVar = diag(sqrt([50,10]));
-AnomalyConfig.DriftMax = [50;10];
+AnomalyConfig.NoiseVar = diag(sqrt([0.05,0.05]));
+AnomalyConfig.BiasVar = diag(sqrt([0.05,0.05]));
+AnomalyConfig.DriftMax = [0.05,0.05];
 AnomalyConfig.seed = 10; % random seed controler
 %% Generate baseline data
-[x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l
-
+[x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l for training 
+[x_l_test,v_l_test] = data_process(s); % get leading vehicle location x_l, speed v_l and acceleration a_l for testing
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
 % car-following model 
 
@@ -69,15 +71,21 @@ delta_t = config.delta_t; % sampling time interval with unit "s"
 
 t  = floor(tau/delta_t); % time delay in discrete state-transition model
 
-s_f = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
-x_f = s_f(:,1);
-v_f = s_f(:,2);
-save(strcat(filePath,'following_state.mat'),'s_f')
+s_f_train = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
+% x_f = s_f_train(:,1);
+% v_f = s_f_train(:,2);
 
+s_f = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
+% x_f = s_f(:,1);
+% v_f = s_f(:,2);
+save(strcat(filePath,'following_state_test.mat'),'s_f') % testing data
+save(strcat(filePath,'following_state_train.mat'),'s_f_train') % training data
 %% Run experiments
-s= s(5:end,:)';
-s_f = s_f(5:2000,:)';
+s= s(1500:1950,:)';
+s_f = s_f(1500:1950,:)';
 
+s_train = s_train(1500:1950,:)';
+s_f_train = s_f_train(1500:1950,:)';
 % Generate anomalous data
 [s_la, s_fa, AnomalyConfig] = generateAnomaly(s, s_f, AnomalyConfig); 
 AnomalyIdx = AnomalyConfig.index; % ground truth
@@ -88,10 +96,10 @@ s_test = s_la; s_f_test = s_fa; % test dataset
 % Generate statistics for baseline data
 if(config.OCSVM)
     config.OCSVM = false;
-    [~,~,p0] = CfFilter(s, s_f, config, idm_para, s_f); 
+    [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train); 
     config.OCSVM = true;
 else
-    [~,~,p0] = CfFilter(s, s_f, config, idm_para, s_f); 
+    [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train); 
 end
     
 % Train several OCSVM models with different sensitivity levels
@@ -131,10 +139,10 @@ acc  = (TP+TN)/(TN+FN+FP+TP);
 spec = TN/(TN+FP);
 sen  = TP / (TP + FN);
 ppv  = TP/(TP+FP);
-
+fpRate = 1-spec;
 metric_name = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
-    ;'Precision'};
-metric_values = [TP;FP;TN;FN;f1;acc;spec;sen;ppv];
+    ;'Precision';'FP rate'};
+metric_values = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate];
 
 Summary.configuration = config;
 Summary.car_following_para = idm_para;
@@ -148,6 +156,7 @@ save(strcat(filePath,filename),'Summary')
 disp(Summary.results)
 
 %% Plotting
+if (config.plot)
 close all
 [m,n] = size(s_fa);
 
@@ -172,33 +181,37 @@ v_f2 = shat(2,:);
 
 subplot(413)
 plot(v_l);hold on; plot(v_f2);
-plot(xx(err),v_f2(err),'b*');
+% plot(xx(err),v_f2(err),'b*');
 plot(xx(AnomalyConfig.index(2,:)),v_f2(AnomalyConfig.index(2,:)),'d')
-legend('leading-raw','following-filtered'); ylim([0,40]);
+legend('leading-raw','following-filtered','Anomaly'); ylim([0,40]);
 
 subplot(414)
-plot(x_l);hold on; plot(x_f2);legend('leading-raw','following-filtered');
+plot(x_l);hold on; plot(x_f2);
 plot(xx(AnomalyConfig.index(1,:)),x_f2(AnomalyConfig.index(1,:)),'d');
+legend('leading-raw','following-filtered','Anomaly');
 
 figure
 subplot(511),
 h_x = histogram(p0.innov(1,:));
-h_x.BinWidth = 0.2;
+h_x.BinWidth = 0.05;
 hold on
 mean_location = mean(p0.innov(1,:))
 h_v = histogram(p0.innov(2,:)); legend('vehicle location','vehicle speed')
 hold off
-h_v.BinWidth = 0.2;
-xlim([-10,10]);
+h_v.BinWidth = 0.05;
+xlim([-5,5]);
 mean_speed = mean(p0.innov(2,:))
 
 subplot(512),
 hist = vecnorm(p0.innov(:,:),1);
 h_hist = histogram(hist);legend('Histogram $l1$ norm of innovation sequence','Interpreter','latex')
+h_hist.BinWidth = 0.05;
+xlim([-0,5]);
 
 subplot(513),
 text = '$l1$ norm of innovation sequence';
 plot(hist), legend(text,'Interpreter','latex')
+ylim([0,5]);
 
 subplot(514),
 text = '$\chi^2$ test statistcs sequence';
@@ -209,3 +222,4 @@ plot(p.rmse), legend('RMSE sequence');
 % figure
 % plot(x1,y1), legend('ROC curve of OCSVM');
 % auc1
+end
