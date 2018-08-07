@@ -22,6 +22,7 @@ config.delta_t = 0.1; % sensor sampling time interval in seconds
 config.tau = 1.5; % time delay
 config.N_ocsvm = 10; % Time window length for OCSVM
 config.N = 2; % time window length for AdEKF
+
 config.plot = true; % true if generate plots
 
 weight_vector = [3,7]; % fogeting factor for adaptive EKF
@@ -82,7 +83,7 @@ save(strcat(filePath,'following_state_test.mat'),'s_f') % testing data
 save(strcat(filePath,'following_state_train.mat'),'s_f_train') % training data
 %% Run experiments
 s= s(1500:1950,:)';
-s_f = s_f(1500:1950,:)';
+s_f = s_f(1500:1950,:)'; % baseline of testing data
 
 s_train = s_train(1500:1950,:)';
 s_f_train = s_f_train(1500:1950,:)';

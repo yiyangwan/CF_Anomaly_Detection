@@ -75,6 +75,7 @@ for i = 1:m1
     AnomalyConfig.DriftMax = values{11}{AllCombine(i,11)};
     
     config.use_CF = values{12}{AllCombine(i,12)}; % use CF model or not
+    config.use_predict = values{13}{AllCombine(i,13)}; % replace estimate as predict when anomaly detected or not
     
     Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data,s);
     path = 'D:\research\CF_detection\results\'; % result files location

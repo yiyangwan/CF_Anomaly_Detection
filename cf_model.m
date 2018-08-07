@@ -28,4 +28,8 @@ for i = 1:n_step
     v_f_pre = v_f(i+t);
 end
 s_f = [x_f,v_f];
+
+if(t>=1)
+   s_f = s_f(1:n_step,:); 
+end
 end

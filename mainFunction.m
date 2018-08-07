@@ -3,8 +3,8 @@ function [Summary] = mainFunction(config,idm_para,AnomalyConfig,raw_data,s_test1
 rng(AnomalyConfig.seed); % control the random generator so that it generates predictable random number
 
 %% Generate baseline data
-[x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l
-[x_l_test,v_l_test] = data_process(s_test1);
+[x_l,v_l] = data_process(raw_data); % training data, get leading vehicle location x_l, speed v_l and acceleration a_l
+[x_l_test,v_l_test] = data_process(s_test1); % testing data
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
 % car-following model 
 
@@ -19,11 +19,11 @@ t  = ceil(tau/delta_t); % time delay in discrete state-transition model
 s_f = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
 s_f_test1 = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
 %% Run experiments
-s= raw_data(7:end,:)';
-s_f = s_f(7:4000,:)';
+s= raw_data(7:end,:)'; % baseline of training data of leading vehicle
+s_f = s_f(7:end,:)'; % baseline of training data of following vehicle
 
-s_test1 = s_test1(7:end,:)';
-s_f_test1 = s_f_test1(7:2000,:)';
+s_test1 = s_test1(7:end,:)'; % baseline of testing data of leading vehicle
+s_f_test1 = s_f_test1(7:end,:)'; % baseline of testing data of following vehicle
 %==========================================================================
 %   AnomalyConfig: 
 %       .index: index of anomaly
@@ -44,7 +44,7 @@ s_test = s_la; s_f_test = s_fa; % test dataset
 
 %% Run Models
 % Generate statistics for baseline data
-if(config.OCSVM)
+if config.OCSVM
     config.OCSVM = false;
     [~,~,p0] = CfFilter(s, s_f, config, idm_para, s_f); 
     config.OCSVM = true;
@@ -63,7 +63,7 @@ if(config.OCSVM)
     
  % Test OCSVM
     
-    [shat,err,p] = CfFilter(s_test, s_f_test, config, idm_para, s_test);    
+    [shat,err,p] = CfFilter(s_test, s_f_test, config, idm_para, s_f_test1);    
     err = logical(err');
 %     s = s_test';
 %     s_f = s_f_test';
@@ -72,7 +72,7 @@ if(config.OCSVM)
 
 
 else
-    [shat,err,p] = CfFilter(s_test, s_f_test, config, idm_para, s_f);
+    [shat,err,p] = CfFilter(s_test, s_f_test, config, idm_para, s_f_test1);
     err = logical(err');
 end
 
