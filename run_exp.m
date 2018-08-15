@@ -1,6 +1,6 @@
 clear
 
-filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
+filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
 load(strcat(filePath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
 load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
 % load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f

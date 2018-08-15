@@ -6,4 +6,4 @@ Select run_exp.m for one run.
 
 Select grid_search.m for multiple runs with different parameters predefined in config.ini file.
 
-Need to be run on MATLAB 2017+.
+Need to be run on MATLAB 2017b or later.
