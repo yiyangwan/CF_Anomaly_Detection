@@ -6,6 +6,7 @@ load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train fo
 % load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
 raw_data   = s_train;
 % s = s_train;
+
 % Config data structure====================================================
 config.OCSVM = true; % if true, then use OCSVM instead of Chi-square detector
 config.adptQ = true; % if true, then adaptively estimate process noise covariance matrix Q
@@ -13,13 +14,13 @@ config.adptR = false; % if true, then adaptively estimate measurement noise cova
 config.use_CF = true; % true if using CF model
 config.use_predict = false; % true if replacing estimate as predict when anomaly detected
 
-config.OCSVM_threshold = [0.02; 0.5 ; 1]; % OCSVM model threshold for training
+config.OCSVM_threshold = [2; 3.5 ; 5]; % OCSVM model threshold for training
 config.R = diag([0.01,0.01]); % observation noise covariance
 config.Q = diag([0.5,0.2]); % process noise covariance
 config.H = eye(2); % observation matrix
-config.r = 0.02; % Chi-square detector parameter
+config.r = 2; % Chi-square detector parameter
 config.delta_t = 0.1; % sensor sampling time interval in seconds
-config.tau = 1.5; % time delay
+config.tau = 0.05; % time delay
 config.N_ocsvm = 10; % Time window length for OCSVM
 config.N = 2; % time window length for AdEKF
 
@@ -54,9 +55,9 @@ idm_para.a_min = -0.00; % max deceleration of random term
 AnomalyConfig.percent = 0.005;
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length = 20;
-AnomalyConfig.NoiseVar = diag(sqrt([0.05,0.05]));
-AnomalyConfig.BiasVar = diag(sqrt([0.05,0.05]));
-AnomalyConfig.DriftMax = [0.05,0.05];
+AnomalyConfig.NoiseVar = diag(sqrt([2,2]));
+AnomalyConfig.BiasVar = diag(sqrt([2,2]));
+AnomalyConfig.DriftMax = [2,2];
 AnomalyConfig.seed = 10; % random seed controler
 %% Generate baseline data
 [x_l,v_l] = data_process(raw_data); % get leading vehicle location x_l, speed v_l and acceleration a_l for training 
@@ -82,11 +83,11 @@ s_f = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
 save(strcat(filePath,'following_state_test.mat'),'s_f') % testing data
 save(strcat(filePath,'following_state_train.mat'),'s_f_train') % training data
 %% Run experiments
-s= s(1500:1950,:)';
-s_f = s_f(1500:1950,:)'; % baseline of testing data
+s= s(1:end,:)';
+s_f = s_f(1:end,:)'; % baseline of testing data
 
-s_train = s_train(1500:1950,:)';
-s_f_train = s_f_train(1500:1950,:)';
+s_train = s_train(1:end,:)';
+s_f_train = s_f_train(1:end,:)';
 % Generate anomalous data
 [s_la, s_fa, AnomalyConfig] = generateAnomaly(s, s_f, AnomalyConfig); 
 AnomalyIdx = AnomalyConfig.index; % ground truth

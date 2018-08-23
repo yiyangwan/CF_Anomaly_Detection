@@ -4,7 +4,7 @@ function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ekf(f,h,y,del_f,del_h,x_hat,P_
 % -------------------------------------------------------------------------
 %
 % State space model is
-% X_k+1 = f_k(X_k) + V_k+1   -->  state update
+% X_k+1 = f_k(X_k,U_k) + V_k+1   -->  state update
 % Y_k = h_k(X_k) + W_k       -->  measurement
 % 
 % V_k+1 zero mean uncorrelated gaussian, cov(V_k) = Q_k
@@ -65,19 +65,19 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     error1 = 0;
     
     y_hat = h(x_hat);
-    y_tilde = y - y_hat;        % innovation    
+    y_tilde = y - y_hat;                        % innovation    
     p.y_tilde = y_tilde;
     
-    t = del_h(x_hat);           % 1st Jacobian
+    t = del_h(x_hat);                           % 1st Jacobian
     tmp = P_hat*t'; 
     
-    S = t*tmp+R;               % innovation covariance
+    S = t*tmp+R;                                % innovation covariance
     
     p.innov = abs(S.^(0.5)) \ y_tilde;
 
-    K = tmp/(S+2*eps);            % Kalman gain
+    K = tmp/(S+2*eps);                          % Kalman gain
     
-    p.chi = y_tilde'/(S+2*eps)*y_tilde; % chi-square statistics
+    p.chi = y_tilde'/(S+2*eps)*y_tilde;         % chi-square statistics
     
     if(~OCSVM)
         
@@ -85,12 +85,19 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
             error1 = 1;
             
             if(config.use_predict)
-                x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+                x_dgr = x_hat;                  % if anomaly detected, use predict as estimate                
+                P_dgr = P_hat;
             else
                 x_dgr = groundtruth;
+                t = del_h(groundtruth); 
+                tmp = P_hat*t';
+                S = t*tmp+R; 
+                K = tmp/(S+2*eps); 
+                P_dgr = P_hat - K*t*P_hat;
             end
         else 
             x_dgr = x_hat + K* y_tilde;
+            P_dgr = P_hat - K*t*P_hat;
         end
     
     else
@@ -112,29 +119,36 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
             error1 = 1;
             
             if(config.use_predict)
-                x_dgr = x_hat; % if anomaly detected, use predict as estimate 
+                x_dgr = x_hat;                   % if anomaly detected, use predict as estimate 
+                P_dgr = P_hat;
             else
                 x_dgr = groundtruth;
+                t = del_h(groundtruth); 
+                tmp = P_hat*t';
+                S = t*tmp+R; 
+                K = tmp/(S+2*eps); 
+                P_dgr = P_hat - K*t*P_hat;
             end
         else 
             x_dgr = x_hat + K* y_tilde;
+            P_dgr = P_hat - K*t*P_hat;
         end
         p.score = score_1d;
     end
     
-    y_residual = y - h(x_dgr); % residual between the actual measurement and its estimated value
+    y_residual = y - h(x_dgr);                   % residual between the actual measurement and its estimated value
     p.residual = y_residual;
     
-    CF_his1 = @(tt) CF_his(tt,x_dgr);  % store current state estimate to compute the next prediction     
+    CF_his1 = @(tt) CF_his(tt,x_dgr);            % store current state estimate to compute the next prediction     
 %     x_next = f(x_dgr);
-    sol_x = dde23(f1,tau,CF_his1,[tk1,tk2]); % solve DDE of state variable 
+    sol_x = dde23(f1,tau,CF_his1,[tk1,tk2]);     % solve DDE of state variable 
     x_next = sol_x.y(:,end);
     
-    P_dgr = P_hat - K*t*P_hat;
+    
 %     P_next = p* P_dgr* p' + Q;
     f_del1 = @(tt,P,Z) P_d(tt,P,Z,del_f(x_dgr,u),Q);
-    P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1); % store current covariance estimate to compute the next prediction
-    sol_P = dde23(f_del1,tau,P_his_1,[tk1,tk2]); % solve DDE of covariance matrix P
+    P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1);  % store current covariance estimate to compute the next prediction
+    sol_P = dde23(f_del1,tau,P_his_1,[tk1,tk2]);    % solve DDE of covariance matrix P
     P_next = reshape(sol_P.y(:,end),2,2);
     
     p.RMSE = sqrt(mean((groundtruth - x_dgr).^2));  % Root Mean Squared Error
