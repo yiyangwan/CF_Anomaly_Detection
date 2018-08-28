@@ -135,9 +135,9 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(P_his,'function_
         p.residual = y_residual;
         
         
-        X_dgr = sigmas(x_dgr,P_dgr,c);              %sigma points of current estimation
-        X_next = zeros(size(X_dgr));                %initial predicted sigma points
-        x_next.x = zeros(size(x));
+%         X_dgr = sigmas(x_dgr,P_dgr,c);              %sigma points of current estimation
+%         X_next = zeros(size(X_dgr));                %initial predicted sigma points
+%         x_next.x = zeros(size(x));
         
 %         for i = 1:(2*L+1)
 %             
@@ -151,14 +151,15 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(P_his,'function_
         CF1 = @(s) CF(s,u); 
         CF_Sigma = @(X) CF_X(X,CF1);                    %motion model for sigma points matrix
         
-        CF_X3 = @(t,X,Z) sum(CF_X2(t,X,Z,f1) .* Wm , 2); %****************NEED TO FINISH "W"*************
-        CF_X4 = @(t,X,Z) reshape(X*W*CF_X2(t,X,Z,f1)' + CF_X2(t,X,Z,f1)*W*X' +Q, [],1);
+        x_der  = @(s) CF_Sigma(sigmas(s,P_dgr,c)) * Wm;
         
-        CF_X5 = @(t,X,Z) [CF_X3(t,X,Z);CF_X4];
+        P_der = @(s) reshape(sigmas(s,P_dgr,c)* W * x_der(s,P_dgr,c)' + x_der(s,P_dgr,c) *W * sigmas(s,P_dgr,c)' + Q,[],1);
         
-        f_del1 = @(tt,P,Z) P_d(tt,P,Z,CF_Sigma(X_dgr(:,i),u),Q);
-        P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1);  %store current covariance estimate to compute the next prediction
-        sol_P = dde23(f_del1,tau,P_his_1,[tk1,tk2]);    %solve DDE of covariance matrix P
+        dde_sys = @(t,s,Z) dde_ss(t,s,Z,x_der,P_der);
+        
+%         f_del1 = @(tt,P,Z) P_d(tt,P,Z,CF_Sigma(X_dgr(:,i),u),Q);
+%         P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1);  %store current covariance estimate to compute the next prediction
+        sol_P = dde23(dde_sys,tau,P_his_1,[tk1,tk2]);    %solve DDE of covariance matrix P **************************I AM HERE!!!!*******************
         P_next = reshape(sol_P.y(:,end),2,2); 
         
         
@@ -231,9 +232,23 @@ C = num2cell(X, 1);                     %Collect the columns into cells
 cf = cellfun(CF, C);          %A 2-by-(2L+1) vector
 end
 
-function cf2 = CF_X2(t,X,Z,f1)
-% f1 is a function handle @(tt,ss,ZZ)!
-C = num2cell(X, 1);                      %Collect the columns into cells
-f11 = @(ss) f1(t,ss,Z);
-cf2 = cellfun(f11, C);
+function dde_sys = dde_ss(t,s,Z,x_der,P_der)
+%x_der,P_der are function handles
+xlag = Z(:,1);
+
+dde_sys = [select(x_der([xlag(1);xlag(2)]), 1);
+            select(x_der([xlag(1);xlag(2)]), 2);
+            select(P_der([xlag(1);xlag(2)]), 1);
+            select(P_der([xlag(1);xlag(2)]), 2);
+            select(P_der([xlag(1);xlag(2)]), 3);
+            select(P_der([xlag(1);xlag(2)]), 4)];
+
 end
+
+
+% function cf2 = CF_X2(t,X,Z,f1)
+% % f1 is a function handle @(tt,ss,ZZ)!
+% C = num2cell(X, 1);                      %Collect the columns into cells
+% f11 = @(ss) f1(t,ss,Z);
+% cf2 = cellfun(f11, C);
+% end
