@@ -1,4 +1,4 @@
-function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ukf(f,h,y,x_hat,P_hat,u,groundtruth,CF,CF_his,P_his,tk1,tk2,config,psum) 
+function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ukf(f,h,y,x_hat,P_hat,u,groundtruth,CF,dde_his,tk1,tk2,config,psum) 
 % UKF   Unscented Kalman Filter for nonlinear dynamic systems
 % -------------------------------------------------------------------------
 %
@@ -43,48 +43,48 @@ function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ukf(f,h,y,x_hat,P_hat,u,ground
 % -------------------------------------------------------------------------
 %
 
-if isa(f,'function_handle') && isa(CF,'function_handle') && isa(P_his,'function_handle') && isa(CF_his,'function_handle') && isa(h,'function_handle')
-    R = config.R;
-    Q = config.Q;
-    tau = config.tau;
-    OCSVM = config.OCSVM;
-    r = config.r;
+if isa(f,'function_handle') && isa(CF,'function_handle') && isa(dde_his,'function_handle') && isa(h,'function_handle')
+    R       = config.R;
+    Q       = config.Q;
+    tau     = config.tau;
+    OCSVM   = config.OCSVM;
+    r       = config.r;
     
     x = x_hat.x;                                %state prediction
     X = x_hat.X;                                %sigma points prediction
     
-    L = numel(x);                               %numer of states
-    m = numel(y);                               %numer of measurements
-    alpha = config.alpha;                       %default, tunable
-    ki = config.ki;                             %default, tunable
-    beta= config.beta;                          %default, tunable
+    L       = numel(x);                         %numer of states
+    m       = numel(y);                         %numer of measurements
+    alpha   = config.alpha;                     %default, tunable
+    ki      = config.ki;                        %default, tunable
+    beta    = config.beta;                      %default, tunable
     
-    X2 = X-x(:,ones(1,L));                      %residuals of sigma points
+    X2      = X-x(:,ones(1,2*L+1));             %residuals of sigma points
 
     
-    lambda=alpha^2*(L+ki)-L;                    %scaling factor
-    c=L+lambda;                                 %scaling factor
-    Wm=[lambda/c 0.5/c+zeros(1,2*L)];           %weights for means
-    Wc=Wm;
-    Wc(1)=Wc(1)+(1-alpha^2+beta);               %weights for covariance
-    c=sqrt(c);
+    lambda  =alpha^2*(L+ki)-L;                  %scaling factor
+    c       =L+lambda;                          %scaling factor
+    Wm      =[lambda/c 0.5/c+zeros(1,2*L)]';    %weights for means
+    Wc      =Wm;
+    Wc(1)   =Wc(1)+(1-alpha^2+beta);            %weights for covariance
+    c       =sqrt(c);
     
-    error1 = 0;                                 %fault indicator
+    W       = ( eye(2*L+1) - Wm*ones(1,(2*L+1)) ) * diag(Wc) ...
+        * ( eye(2*L+1) - Wm*ones(1,(2*L+1)) )'; %weight matrix used for solving DDE
+    
+    
+    error1  = 0;                                %fault indicator
           
-    [y1,Y1,P2,Y2]=ut(h,X,Wm,Wc,m,R);            %unscented transformation of measurments
+    [y1,~,P2,Y2]    =ut(h,X,Wm,Wc,m,R);         %unscented transformation of measurments
     
-    p.y_tilde = y-y1;                           %innovation
-    p.innov = abs(P2.^(0.5)) \ p.y_tilde;       %normalized innovation sequence
+    p.y_tilde       = y-y1;                     %innovation
+    p.innov         = abs(P2.^(0.5))\p.y_tilde; %normalized innovation sequence
     
-    P12=X2*diag(Wc)*Y2';                        %transformed cross-covariance
-    K=P12 / (P2+2*eps);                         %kalman gain
+    P12             =X2*diag(Wc)*Y2';       	%transformed cross-covariance
+    K               =P12 / (P2+2*eps);      	%kalman gain
     
     p.chi = p.y_tilde'/(P2+2*eps+R)*p.y_tilde;  %chi-square statistics
-    
-    f1 = @(tt,ss,ZZ) f(tt,ss,u,ZZ);
-    
-    P=P1-K*P12';                                %covariance update
-
+       
     if(~OCSVM)
         if (p.chi >= r)
             error1 = 1;
@@ -93,11 +93,11 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(P_his,'function_
                 P_dgr = P_hat;
             else
                 x_dgr = groundtruth;
-                P_dgr = P_hat - K*t*P_hat;
+                P_dgr = P_hat - K*P12';
             end
         else 
             x_dgr = x + K * p.y_tilde;
-            P_dgr = P_hat - K*t*P_hat;
+            P_dgr = P_hat - K*P12';
         end
     else
         OCSVM_r = config.OCSVM_threshold;
@@ -121,56 +121,43 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(P_his,'function_
                 P_dgr = P_hat;
             else
                 x_dgr = groundtruth;
-                P_dgr = P_hat - K*t*P_hat;
+                P_dgr = P_hat - K*P12';
             end
             
         else 
-            x_dgr = x + K* y_tilde;
-            P_dgr = P_hat - K*t*P_hat;
+            x_dgr = x + K* p.y_tilde;
+            P_dgr = P_hat - K*P12';
         end
             p.score = score_1d;
     end        
         
-        y_residual = y - h(x_dgr);                  %residual between the actual measurement and its estimated value
-        p.residual = y_residual;
-        
-        
-%         X_dgr = sigmas(x_dgr,P_dgr,c);              %sigma points of current estimation
-%         X_next = zeros(size(X_dgr));                %initial predicted sigma points
-%         x_next.x = zeros(size(x));
-        
-%         for i = 1:(2*L+1)
-%             
-%             CF_his1 = @(tt) CF_his(tt,X_dgr(:,i));    %store current state estimate to compute the next prediction
-%             sol_X = dde23(f1,tau,CF_his1,[tk1,tk2]);  %solve DDE of state variable
-%             x_next.X(:,i) = sol_X.y(:,end);
-%             x_next.x = x_next.x + Wm(i) * x_next.X(:,i);
-%                        
-%         end
-        
+        p.residual = y - h(x_dgr);                      %residual between the actual measurement and its estimated value
+                         
         CF1 = @(s) CF(s,u); 
         CF_Sigma = @(X) CF_X(X,CF1);                    %motion model for sigma points matrix
         
-        x_der  = @(s) CF_Sigma(sigmas(s,P_dgr,c)) * Wm;
+        x_der  = @(s,P) CF_Sigma(sigmas(s,P,c)) * Wm;
         
-        P_der = @(s) reshape(sigmas(s,P_dgr,c)* W * x_der(s,P_dgr,c)' + x_der(s,P_dgr,c) *W * sigmas(s,P_dgr,c)' + Q,[],1);
+        P_der = @(s,P) reshape(sigmas(s,P,c) * W * CF_Sigma(sigmas(s,P,c))' + CF_Sigma(sigmas(s,P,c)) * W * sigmas(s,P,c)' + Q,[],1);
         
-        dde_sys = @(t,s,Z) dde_ss(t,s,Z,x_der,P_der);
+        sys_his = @(tt) dde_his(tt,[x_dgr;reshape(P_dgr,[],1)]);
         
-%         f_del1 = @(tt,P,Z) P_d(tt,P,Z,CF_Sigma(X_dgr(:,i),u),Q);
-%         P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1);  %store current covariance estimate to compute the next prediction
-        sol_P = dde23(dde_sys,tau,P_his_1,[tk1,tk2]);    %solve DDE of covariance matrix P **************************I AM HERE!!!!*******************
-        P_next = reshape(sol_P.y(:,end),2,2); 
+        if(tau>0)
+            dde_sys = @(t,sys_state,Z) dde_ss(t,sys_state,Z,x_der,P_der);
+            sol_sys = dde23(dde_sys,tau,sys_his,[tk1,tk2]);    %solve DDE of state & covariance 
+        else
+            ode_sys = @(t,s)  ode_ss(t,s,x_der, P_der);
+            sol_sys = ode15s(ode_sys,[tk1,tk2],sys_his(1));
+        end
         
-        
-             
-        
+        P_next = reshape(squeeze(sol_sys.y(L+1:end,end)), L,L);
+        x_next.x = squeeze(sol_sys.y(1:L,end));
+        x_next.X = sigmas(x_next.x,P_next,c);       
     
         p.RMSE = sqrt(mean((groundtruth - x_dgr).^2));  %Root Mean Squared Error
-     
-        
+            
 else
-    error('f, h, CF, CF_his and P_his should be function handles')
+    error('f, h, CF and dde_his should be function handles')
     return
 end
 end
@@ -201,54 +188,31 @@ Y1=Y-y(:,ones(1,L));
 P=Y1*diag(Wc)*Y1'+R;     
 end
 
-function X=sigmas(x,P,c)
-%Sigma points around reference point
-%Inputs:
-%       x: reference point
-%       P: covariance
-%       c: coefficient
-%Output:
-%       X: Sigma points
-
-A = c*chol(P)';
-Y = x(:,ones(1,numel(x)));
-X = [x Y+A Y-A]; 
-end
-
-function p = P_d(tt,P,Z,f,Q)
-plag1 = Z(:,1);
-
-a = f(1,1); b = f(1,2); c = f(2,1); d = f(2,2);
-
-p = [a*plag1(1)+b*plag1(3); a*plag1(2)+b*plag1(4);...
-    c*plag1(1)+d*plag1(3); c*plag1(2)+d*plag1(4)] + ...
-    [a*plag1(1)+b*plag1(2); c*plag1(1)+d*plag1(2); ...
-    a*plag1(3) + b*plag1(4); c*plag1(3)+d*plag1(4)] + reshape(Q,[],1);
-end
-
 function cf = CF_X(X,CF)
-% CF is a function handle @(s)!
+%CF is a function handle @(s)!
 C = num2cell(X, 1);                     %Collect the columns into cells
-cf = cellfun(CF, C);          %A 2-by-(2L+1) vector
+cf = cell2mat(cellfun(CF, C,'un',0));   %A 2-by-(2L+1) vector
 end
 
-function dde_sys = dde_ss(t,s,Z,x_der,P_der)
+function dde_sys = dde_ss(t, s, Z, x_der, P_der)
 %x_der,P_der are function handles
 xlag = Z(:,1);
 
-dde_sys = [select(x_der([xlag(1);xlag(2)]), 1);
-            select(x_der([xlag(1);xlag(2)]), 2);
-            select(P_der([xlag(1);xlag(2)]), 1);
-            select(P_der([xlag(1);xlag(2)]), 2);
-            select(P_der([xlag(1);xlag(2)]), 3);
-            select(P_der([xlag(1);xlag(2)]), 4)];
-
+dde_sys = [ Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 1);
+            Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 2);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 1);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 2);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 3);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 4) ];
 end
 
+function ode_sys = ode_ss(t, Z, x_der, P_der)
+x = Z(:,1);
 
-% function cf2 = CF_X2(t,X,Z,f1)
-% % f1 is a function handle @(tt,ss,ZZ)!
-% C = num2cell(X, 1);                      %Collect the columns into cells
-% f11 = @(ss) f1(t,ss,Z);
-% cf2 = cellfun(f11, C);
-% end
+ode_sys = [ Eselect(x_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 1);
+            Eselect(x_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 2);
+            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 1);
+            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 2);
+            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 3);
+            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 4)];
+end
