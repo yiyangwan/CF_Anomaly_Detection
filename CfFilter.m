@@ -129,17 +129,17 @@ end
 
 end
 
-function s_his = CF_his(t,x_hat)
-% History function for CF_idm.
-s_his = x_hat;
-
-end
-
-function P_his = P_his(t,P_hat)
-% History function for f_del1.
-P_his = P_hat;
-
-end
+% function s_his = CF_his(t,x_hat)
+% % History function for CF_idm.
+% s_his = x_hat;
+% 
+% end
+% 
+% function P_his = P_his(t,P_hat)
+% % History function for f_del1.
+% P_his = P_hat;
+% 
+% end
 
 function s_d = CF_idm(t,s,u,Z,idm_para)
 % This function inplements IDM CF model with time delay tau.

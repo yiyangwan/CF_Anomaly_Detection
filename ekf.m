@@ -153,22 +153,19 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
         sol_sys = ode15s(ode_sys,[tk1,tk2],sys_his(1));
     end
     
-    
-    
     P_next = reshape(squeeze(sol_sys.y(m+1:end,end)), m, m);
+    
+    %======================================================================
+    %===Force covariance matrix symmetric and positive on diag elements====
+    %======================================================================
+    for k = 1:m
+    	P_next(k,k) = abs(P_next(k,k));
+    end
+    P_next = (P_next + P_next')*0.5;
+    %======================================================================
+    %======================================================================
+    %======================================================================
     x_next = squeeze(sol_sys.y(1:m,end));
-    
-%     CF_his1 = @(tt) CF_his(tt,x_dgr);            % store current state estimate to compute the next prediction     
-%     x_next = f(x_dgr);
-%     sol_x = dde23(f1,tau,CF_his1,[tk1,tk2]);     % solve DDE of state variable 
-%     x_next = sol_x.y(:,end);
-    
-    
-%     P_next = p* P_dgr* p' + Q;
-%     f_del1 = @(tt,P,Z) P_d(tt,P,Z,del_f(x_dgr,u),Q);
-%     P_his_1 = @(tt) reshape(P_his(tt,P_dgr),[],1);  % store current covariance estimate to compute the next prediction
-%     sol_P = dde23(f_del1,tau,P_his_1,[tk1,tk2]);    % solve DDE of covariance matrix P
-%     P_next = reshape(sol_P.y(:,end),2,2);
     
     p.RMSE = sqrt(mean((groundtruth - x_dgr).^2));  % Root Mean Squared Error
     
@@ -178,17 +175,6 @@ else
 end
 end
 
-% function p = P_d(tt,P,Z,del_f,Q)
-% plag1 = Z(:,1);
-% 
-% a = del_f(1,1); b = del_f(1,2); c = del_f(2,1); d = del_f(2,2);
-% 
-% p = [a*plag1(1)+b*plag1(3); a*plag1(2)+b*plag1(4);...
-%     c*plag1(1)+d*plag1(3); c*plag1(2)+d*plag1(4)] + ...
-%     [a*plag1(1)+b*plag1(2); c*plag1(1)+d*plag1(2); ...
-%     a*plag1(3) + b*plag1(4); c*plag1(3)+d*plag1(4)] + reshape(Q,[],1);
-% end
-
 
 function dde_sys = dde_ss(t, s, Z, x_der, P_der)
 %x_der,P_der are function handles
@@ -197,10 +183,10 @@ xlag = Z(:,1);
 
 dde_sys = [ Eselect(x_der([xlag(1);xlag(2)]), 1);
             Eselect(x_der([xlag(1);xlag(2)]), 2);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 1);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 2);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 3);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 4)];
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 1);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 2);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 3);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 4)];
 end
 
 function ode_sys = ode_ss(t,Z,x_der, P_der)
@@ -208,8 +194,8 @@ x = Z(:,1);
 
 ode_sys = [ Eselect(x_der([x(1);x(2)]), 1);
             Eselect(x_der([x(1);x(2)]), 2);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 1);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 2);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 3);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 4)];
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 1);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 2);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 3);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 4)];
 end

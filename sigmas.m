@@ -7,10 +7,8 @@ function X=sigmas(x,P,c)
 %Output:
 %       X: Sigma points
 [cholesky, ind] = chol(P);
-if(issymmetric(P))
-    if(~ind)
-        A = c*cholesky';
-    end
+if(issymmetric(P) && ind)
+ 	A = c*cholesky';
     
 else %force matrix P to be symmetric and PD such that Cholesky factorization exists
     for i = 1:size(P,1)-1

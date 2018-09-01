@@ -14,7 +14,7 @@ config.adptR        = false;        % if true, then adaptively estimate measurem
 config.use_CF       = true;         % true if using CF model
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 100;          % interval of iterations for progress printing
-config.ukf          = true;         % true if using Unscented Kalman Filter      
+config.ukf          = 0;         % true if using Unscented Kalman Filter      
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
@@ -25,13 +25,13 @@ config.OCSVM_threshold  = [2; 3.5 ; 5];     % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);% observation noise covariance
 config.Q                = diag([0.5,0.2]);  % process noise covariance
 config.H                = eye(2);           % observation matrix
-config.r                = inf;              % Chi-square detector parameter
+config.r                = 2;              % Chi-square detector parameter
 config.delta_t          = 0.1;              % sensor sampling time interval in seconds
-config.tau              = 0.02;             % time delay
+config.tau              = 0.4;             % time delay
 config.N_ocsvm          = 10;               % Time window length for OCSVM
 config.N                = 2;                % time window length for AdEKF
 
-config.plot             = 0;             % true if generate plots
+config.plot             = true;             % true if generate plots
 
 weight_vector = [3,7];                      % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -59,7 +59,7 @@ idm_para.a_min  = -0.00;    % max deceleration of random term
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent       = 0.000;
+AnomalyConfig.percent       = 0.005;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
 AnomalyConfig.NoiseVar      = diag(sqrt([2,2]));

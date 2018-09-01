@@ -131,6 +131,10 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(dde_his,'functio
             p.score = score_1d;
     end        
         
+        for k = 1:L
+            P_dgr(k,k) = abs(P_dgr(k,k));
+        end
+        
         p.residual = y - h(x_dgr);                      %residual between the actual measurement and its estimated value
                          
         CF1 = @(s) CF(s,u); 
@@ -151,6 +155,17 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(dde_his,'functio
         end
         
         P_next = reshape(squeeze(sol_sys.y(L+1:end,end)), L,L);
+
+     	%======================================================================
+        %===Force covariance matrix symmetric and positive on diag elements====
+        %======================================================================
+        for k = 1:L
+            P_next(k,k) = abs(P_next(k,k));
+        end
+        P_next = (P_next + P_next')*0.5;
+        %======================================================================
+        %======================================================================
+        %======================================================================
         x_next.x = squeeze(sol_sys.y(1:L,end));
         x_next.X = sigmas(x_next.x,P_next,c);       
     
@@ -198,21 +213,21 @@ function dde_sys = dde_ss(t, s, Z, x_der, P_der)
 %x_der,P_der are function handles
 xlag = Z(:,1);
 
-dde_sys = [ Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 1);
-            Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 2);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 1);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 2);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 3);
-            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(4);xlag(5),xlag(6)]), 4) ];
+dde_sys = [ Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 1);
+            Eselect(x_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 2);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 1);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 2);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 3);
+            Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 4) ];
 end
 
 function ode_sys = ode_ss(t, Z, x_der, P_der)
 x = Z(:,1);
 
-ode_sys = [ Eselect(x_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 1);
-            Eselect(x_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 2);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 1);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 2);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 3);
-            Eselect(P_der([x(1);x(2)], [x(3),x(4);x(5),x(6)]), 4)];
+ode_sys = [ Eselect(x_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 1);
+            Eselect(x_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 2);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 1);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 2);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 3);
+            Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 4)];
 end

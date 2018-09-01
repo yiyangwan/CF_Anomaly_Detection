@@ -17,7 +17,7 @@ v_f = zeros(n_step,1);
 x_f_pre = x0; 
 v_f_pre = v0;
 
-if (t>=0)
+if (t>0)
     x_f(1:t) = x0;
     v_f(1:t) = v0;
 end
