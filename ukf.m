@@ -151,7 +151,7 @@ if isa(f,'function_handle') && isa(CF,'function_handle') && isa(dde_his,'functio
             sol_sys = dde23(dde_sys,tau,sys_his,[tk1,tk2]);    %solve DDE of state & covariance 
         else
             ode_sys = @(t,s)  ode_ss(t,s,x_der, P_der);
-            sol_sys = ode15s(ode_sys,[tk1,tk2],sys_his(1));
+            sol_sys = ode45(ode_sys,[tk1,tk2],sys_his(1));
         end
         
         P_next = reshape(squeeze(sol_sys.y(L+1:end,end)), L,L);
