@@ -60,7 +60,8 @@ if(config.use_CF)
 else
     f       = @(tt,ss,uu,ZZ) non_CF(tt,ss,ZZ);  % function handle for motion model without considering CF model
     del_f   = @(ss,uu) non_CF_der(ss);          % function handle for the Jacobian of motion model without considering CF model
-
+    
+    CF      = @(s,u) non_CF2(s);
 end
 
 h       = @(s) H*s; % function handle for measurement model
@@ -173,6 +174,13 @@ function s_d = non_CF(t,s,Z)
 slag1   = Z(:,1);
 
 s_d     = [slag1(2);
+       0];
+end
+
+function s_d = non_CF2(s)
+% This function inplements non_CF motion model with time delay.
+
+s_d     = [s(2);
        0];
 end
 
