@@ -11,29 +11,29 @@ raw_data = s_train;
 config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
 config.adptQ        = true;         % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
-config.use_CF       = true;         % true if using CF model
+config.use_CF       = false;         % true if using CF model
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
-config.print        = 100;          % interval of iterations for progress printing
-config.ukf          = 0;         % true if using Unscented Kalman Filter      
+config.print        = 1000;          % interval of iterations for progress printing
+config.ukf          = false;         % true if using Unscented Kalman Filter      
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [2; 3.5 ; 5];     % OCSVM model threshold for training
-config.R                = diag([0.01,0.01]);% observation noise covariance
-config.Q                = diag([0.5,0.2]);  % process noise covariance
-config.H                = eye(2);           % observation matrix
-config.r                = 2;              % Chi-square detector parameter
-config.delta_t          = 0.1;              % sensor sampling time interval in seconds
-config.tau              = 0.4;             % time delay
-config.N_ocsvm          = 10;               % Time window length for OCSVM
-config.N                = 2;                % time window length for AdEKF
+config.OCSVM_threshold  = [3; 3.5; 4];      % OCSVM model threshold for training
+config.R                = diag([0.01,0.01]);    % observation noise covariance
+config.Q                = diag([0.5,0.2]);      % process noise covariance
+config.H                = eye(2);               % observation matrix
+config.r                = 20.48;                % Chi-square detector parameter
+config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
+config.tau              = 0.5;                  % time delay
+config.N_ocsvm          = 10;                   % Time window length for OCSVM
+config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = true;             % true if generate plots
+config.plot             = false;                % true if generate plots
 
-weight_vector = [3,7];                      % fogeting factor for adaptive EKF
+weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
 
 % IDM CF model parameter===================================================
@@ -43,7 +43,7 @@ idm_para.sigma  = 4;        % acceleration exponent
 idm_para.s0     = 2;        % minimum distance (m)
 idm_para.T      = 1.5;      % safe time headway (s)
 idm_para.v0     = 24;       % desired velocity (m/s)
-idm_para.a_max  = 0.00;     % max acceleration of random term 
+idm_para.a_max  = 0.0;      % max acceleration of random term 
 idm_para.a_min  = -0.00;    % max deceleration of random term
 
 %==========================================================================
@@ -62,9 +62,9 @@ idm_para.a_min  = -0.00;    % max deceleration of random term
 AnomalyConfig.percent       = 0.005;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
-AnomalyConfig.NoiseVar      = diag(sqrt([2,2]));
-AnomalyConfig.BiasVar       = diag(sqrt([2,2]));
-AnomalyConfig.DriftMax      = [2,2];
+AnomalyConfig.NoiseVar      = diag(sqrt([0.1,0.1]));
+AnomalyConfig.BiasVar       = diag(sqrt([0.1,0.1]));
+AnomalyConfig.DriftMax      = [0.1,0.1];
 AnomalyConfig.seed          = 10; % random seed controler
 %% Generate baseline data
 [x_l,v_l]           = data_process(raw_data);   % get leading vehicle location x_l, speed v_l and acceleration a_l for training 
