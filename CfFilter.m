@@ -26,7 +26,7 @@ error_idx   = zeros(n_sample,1);
 delta_t = config.delta_t;   % sensor sampling time interval
 s0      = s_f(:,1);         % initial state prediction for EKF
 
-P_hat   = diag(ones(2,1)); 	% initial state prediction covariance for EKF
+P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
 if(~config.ukf)
     x_hat   = s0;
     
