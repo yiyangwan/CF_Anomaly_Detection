@@ -14,19 +14,26 @@ function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth)
 %         p: p.chi: chi-square statistics 
 %            p.innov: normalized innovation sequence
 
-n_sample    = max(size(s_f));
-m           = size(s_f,1);      % dimension of state
+n_sample    = max(size(s_f));       % number of samples
+m           = size(config.H, 2);      % dimension of state
+m_measure   = size(s_f, 1);         % dimension of measurement
 
 shat        = zeros(m,n_sample);
 p.chi       = zeros(1,n_sample); % chi-square statistics 
-p.innov  	= zeros(m,n_sample); % normalized innovation sequences
+p.innov  	= zeros(m_measure,n_sample); % normalized innovation sequences
 p.score     = zeros(1,n_sample); % score of OCSVM classifier
 error_idx   = zeros(n_sample,1);
 
 delta_t = config.delta_t;   % sensor sampling time interval
-s0      = s_f(:,1);         % initial state prediction for EKF
+
+if(~config.bias_correct)
+    s0      = s_f(:,1);         % initial state prediction for EKF
+else
+    s0      = [squeeze(s_f(:,1)); 0];
+end
 
 P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
+    
 if(~config.ukf)
     x_hat   = s0;
     
@@ -40,22 +47,29 @@ N       = config.N;         % Time window length for Adaptive EKF
 N_ocsvm = config.N_ocsvm;   % Time window length for OCSVM
 
 Ccum    = diag(zeros(m,1)); % initial weighted sum of outer product of innovation
-Ucum    = diag(zeros(m,1)); % initial estimated measurement noises covariance matrix
-vlist   = zeros(m,m,N);     % stack for innovation sequence with length N
-ulist   = zeros(m,m,N);     % stack for residual sequence with length N
-psum    = zeros(m,1);       % initial sum of N_ocsvm-1 normalized innovation
+Ucum    = diag(zeros(m_measure,1)); % initial estimated measurement noises covariance matrix
+vlist   = zeros(m_measure,m_measure,N);     % stack for innovation sequence with length N
+ulist   = zeros(m_measure,m_measure,N);     % stack for residual sequence with length N
+psum    = zeros(m_measure,1);       % initial sum of N_ocsvm-1 normalized innovation
 
-p.rmse  = zeros(m,1);       % stack to store RMSE vector
+p.rmse  = zeros(m_measure,1);       % stack to store RMSE vector
 
-s_f     = s_f + config.R*randn(m,n_sample); % add noise into measurement
+s_f     = s_f + config.R*randn(m_measure,n_sample); % add noise into measurement
 
 H       = config.H; % measurement matrix
 
 if(config.use_CF)
-    f       = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
-    del_f   = @(ss,uu) CF_idm_der(ss,uu,idm_para);          % function handle for the Jacobian of motion model
+    if(~config.bias_correct)
+        f       = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
+        del_f   = @(ss,uu) CF_idm_der(ss,uu,idm_para);          % function handle for the Jacobian of motion model
 
-    CF      = @(s,u) CF_idm2(s,u,idm_para);
+        CF      = @(s,u) CF_idm2(s,u,idm_para);
+    else
+        f       = @(tt,ss,uu,ZZ) CF_idm_bias_corrt(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
+        del_f   = @(ss,uu) CF_idm_der_bias_corrt(ss,uu,idm_para);          % function handle for the Jacobian of motion model
+
+        CF      = @(s,u) CF_idm2_bias_corrt(s,u,idm_para);
+    end
 
 else
     f       = @(tt,ss,uu,ZZ) non_CF(tt,ss,ZZ);  % function handle for motion model without considering CF model
@@ -66,7 +80,6 @@ end
 
 h       = @(s) H*s; % function handle for measurement model
 del_h   = @(s) H;   % function handle for the Jacobian of motion model
-
 
 for i = 1:n_sample
     if(rem(i,config.print) == 0)
@@ -99,8 +112,8 @@ for i = 1:n_sample
         config.R = Ucum; % compute adaptively R based on residual sequence
     end
     
-    Ccum = diag(zeros(m,1)); % reset sum every loop
-    Ucum = diag(zeros(m,1)); % reset sum every loop
+    Ccum = diag(zeros(m,1));            % reset sum every loop
+    Ucum = diag(zeros(m_measure,1));    % reset sum every loop
     
     shat(:,i)       = x_dgr;
     error_idx(i)    = error1;
@@ -235,4 +248,76 @@ end
 
 function sys_his = dde_his(t,s)
 sys_his = s;
+end
+
+function s_der = CF_idm_der_bias_corrt(s,u,idm_para)
+% Jacobian of motion model with bias correction
+% State is 3 dimentional, s_der is 3 by 3 Jacobian matrix
+
+% Parameters---------------------------------------------------------------
+a = idm_para.a; % maximum acceleration
+b = idm_para.b; % comfortable deceleration
+sigma = idm_para.sigma; % acceleration exponent 
+s0 = idm_para.s0; % minimum distance (m)
+T = idm_para.T; % safe time headway (s)
+v0 = idm_para.v0; % desired velocity (m/s)
+
+s_der = [0, 1, 1; a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1))^(-3) ), ...
+    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)) )^2 * ...
+    (s0 + s(2)*T+ ( s(2)*(s(2)-u(2))/2/sqrt(a*b) ) ) * (T + 1/sqrt(a*b)/2 ...
+    * (2*s(2) - u(2)) ) ), 0;...
+    0, 0, 0];
+end
+
+function s_d = CF_idm_bias_corrt(t,s,u,Z,idm_para)
+% This function inplements IDM CF model with time delay tau and bias
+% correction.
+%   The differential equations
+%
+%        s'_1(t) = s_2(t-tau) + s_3(t-tau)
+%        s'_2(t) = a*(1-(s_2(t-tau)/v0)^sigma - ((s0 + s_2(t-tau)*T + s_2(t-tau)*(s_2(t-tau) - u_2(t-tau))/(2*sqrt(a*b))) )
+%   are created on [0, 200] with history s_1(t) = 0, s_2(t) = 0 for
+%   t <= 0.
+
+% Parameters---------------------------------------------------------------
+% a_max = idm_para.a;
+a       = idm_para.a;       % maximum acceleration
+b       = idm_para.b;       % comfortable deceleration
+sigma   = idm_para.sigma;   % acceleration exponent 
+s0      = idm_para.s0;      % minimum distance (m)
+T       = idm_para.T;       % safe time headway (s)
+v0      = idm_para.v0;      % desired velocity (m/s)
+
+slag1   = Z(:,1);
+u1      = u(1,:); % input from the leading vehicle
+u2      = u(2,:); % input from the leading vehicle
+s_d     = [ slag1(2) + slag1(3);
+            a*(1 - (slag1(2)/v0)^sigma - ...
+            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)))^2);...
+            0];
+end
+
+function s_d = CF_idm2_bias_corrt(s,u,idm_para)
+% This function inplements IDM CF model with time delay t and bias correction.
+%   The differential equations
+%
+%        s'_1(t) = s_2(t-0.1)
+%        s'_2(t) = a*(1-(s_2(t-0.1)/v0)^sigma - ((s0 + s_2(t-0.1)*T + s_2(t-0.1)*(s_2(t-0.1) - u_2(t-0.1))/(2*sqrt(a*b))) )
+%   are created on [0, 200] with history s_1(t) = 0, s_2(t) = 0 for
+%   t <= 0.
+
+% Parameters---------------------------------------------------------------
+a       = idm_para.a;       % maximum acceleration
+b       = idm_para.b;       % comfortable deceleration
+sigma   = idm_para.sigma;   % acceleration exponent 
+s0      = idm_para.s0;      % minimum distance (m)
+T       = idm_para.T;       % safe time headway (s)
+v0      = idm_para.v0;      % desired velocity (m/s)
+
+u1      = u(1,:);           % input from the leading vehicle
+u2      = u(2,:);           % input from the leading vehicle
+s_d     = [ s(2)+s(3);
+            a*(1 - (s(2)/v0)^sigma - ...
+            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)))^2);...
+            0];
 end

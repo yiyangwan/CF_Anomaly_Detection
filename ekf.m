@@ -89,8 +89,13 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
                 x_dgr = x_hat;                  % if anomaly detected, use predict as estimate                
                 P_dgr = P_hat;
             else
-                x_dgr = groundtruth;
-                t = del_h(groundtruth); 
+                if(config.bias_correct)
+                    x_dgr = [groundtruth;0];
+                    t = del_h([groundtruth;0]);
+                else
+                    x_dgr = groundtruth;
+                    t = del_h(groundtruth); 
+                end
                 tmp = P_hat*t';
                 S = t*tmp+R; 
                 K = tmp/(S+2*eps); 
@@ -146,11 +151,24 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     sys_his = @(tt) dde_his(tt,[x_dgr;reshape(P_dgr,[],1)]);
     
     if(tau>0)
-        dde_sys = @(t,sys_state, Z) dde_ss(t, sys_state, Z, x_der, P_der);
+        if(~config.bias_correct)
+            dde_sys = @(t,sys_state, Z) dde_ss(t, sys_state, Z, x_der, P_der);
+                        
+        else % using bias correction with augmented state
+            dde_sys = @(t,sys_state, Z) dde_ss_bias_corrt(t, sys_state, Z, x_der, P_der);
+        end
+        
         sol_sys = dde23(dde_sys,tau,sys_his,[tk1,tk2]);    %solve DDE of state & covariance 
+    
     else
-        ode_sys = @(t,s)  ode_ss(t,s,x_der, P_der);
+        if(~config.bias_correct)
+            ode_sys = @(t,s)  ode_ss(t,s,x_der, P_der);
+        else
+            ode_sys = @(t,s)  ode_ss_bias_corrt(t,s,x_der, P_der);
+        end
+        
         sol_sys = ode45(ode_sys,[tk1,tk2],sys_his(1));
+        
     end
     
     P_next = reshape(squeeze(sol_sys.y(m+1:end,end)), m, m);
@@ -167,7 +185,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     %======================================================================
     x_next = squeeze(sol_sys.y(1:m,end));
     
-    p.RMSE = sqrt(mean((groundtruth - x_dgr).^2));  % Root Mean Squared Error
+    p.RMSE = sqrt(mean((groundtruth - h(x_dgr)).^2));  % Root Mean Squared Error
     
 else
     error('f, h, del_f, del_h, CF_his and P_his should be function handles')
@@ -199,3 +217,40 @@ ode_sys = [ Eselect(x_der([x(1);x(2)]), 1);
             Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 3);
             Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 4)];
 end
+
+function dde_sys = dde_ss_bias_corrt(t, s, Z, x_der, P_der)
+%x_der,P_der are function handles
+
+xlag = Z(:,1);
+
+dde_sys = [ Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 1);
+            Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 2);
+            Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 3);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 1);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 2);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 3);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 4);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 5);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 6);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 7);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 8);
+            Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 9)];
+end
+
+function ode_sys = ode_ss_bias_corrt(t,Z,x_der, P_der)
+%x_der,P_der are function handles
+x = Z(:,1);
+
+ode_sys = [ Eselect(x_der([x(1);x(2);x(3)]), 1);
+            Eselect(x_der([x(1);x(2);x(3)]), 2);
+            Eselect(x_der([x(1);x(2);x(3)]), 3);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 1);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 2);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 3);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 4);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 5);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 6);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 7);
+            Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 8)];
+end
+

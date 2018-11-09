@@ -8,30 +8,31 @@ raw_data = s_train;
 % s = s_train;
 
 % Config data structure====================================================
-config.OCSVM        = true;        % if true, then use OCSVM instead of Chi-square detector
+config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
 config.adptQ        = true;         % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;          % interval of iterations for progress printing
 config.ukf          = false;         % true if using Unscented Kalman Filter      
+config.bias_correct = true;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [2.5; 2.7; 3];      % OCSVM model threshold for training
+config.OCSVM_threshold  = [2.5; 2.7; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
-config.Q                = diag([0.5,0.2]);      % process noise covariance
-config.H                = eye(2);               % observation matrix
-config.r                = 20.48;                % Chi-square detector parameter
+config.Q                = diag([0.5,0.2,0.5]);  % process noise covariance
+config.H                = [1,0,0;0,1,0];        % observation matrix
+config.r                = 2.5;                % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.5;                  % time delay
+config.tau              = 0.1;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = true;                % true if generate plots
+config.plot             = false;                % true if generate plots
 
 weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -59,7 +60,7 @@ idm_para.a_min  = -0.3;    % max deceleration of random term
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent       = 0.005;
+AnomalyConfig.percent       = 0.000;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
 AnomalyConfig.NoiseVar      = diag(sqrt([1, 1]));
@@ -100,12 +101,13 @@ s_test = s_la; s_f_test = s_fa; % test dataset
 
 %% Run Models
 % Generate statistics for baseline data
-fprintf('Entering training phase...\n');
 if(config.OCSVM)
+    fprintf('Entering training phase...\n');
     config.OCSVM = false;
     [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train); 
     config.OCSVM = true;
 elseif(config.plot)
+    fprintf('Entering training phase...\n');
     [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train); 
 end
     
@@ -124,7 +126,7 @@ if(config.OCSVM)
     err             = logical(err');
     s               = s_test';
     s_f             = s_f_test';
-    
+% Test chi^2 detector   
 else
     fprintf('Entering testing phase...\n');
     [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
