@@ -4,6 +4,9 @@ function s_f = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para)
 % input of the following vehicle's infomation
 % input: 
 %       leading vehicle location x_l, speed v_l, initial location x0 and speed v0 of the following vehicle
+%       t = floor(tau/delta_t)
+%       delta_t: sampling time interval
+%       tau: time delay
 % output: 
 %       location x_f, speed v_f and acceleration a_f of the following
 %       vehicle
@@ -17,9 +20,12 @@ v_f = zeros(n_step,1);
 x_f_pre = x0; 
 v_f_pre = v0;
 
-if (t>0)
+if (t>=1)
     x_f(1:t) = x0;
     v_f(1:t) = v0;
+    
+else
+    t = 0; % make sure t = 0 when there is no time delay
 end
 for i = 1:n_step
     s = idm(x_l(i),v_l(i),x_f_pre,v_f_pre,delta_t,t,tau,idm_para);

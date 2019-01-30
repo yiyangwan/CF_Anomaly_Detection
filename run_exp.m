@@ -12,10 +12,11 @@ config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-squ
 config.adptQ        = true;         % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
+config.detection    = false;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;          % interval of iterations for progress printing
 config.ukf          = false;         % true if using Unscented Kalman Filter      
-config.bias_correct = true;        % true if enable bias correction in EKF
+config.bias_correct = 0;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
@@ -24,15 +25,15 @@ if(config.ukf)                      % UKF parameters
 end
 config.OCSVM_threshold  = [2.5; 2.7; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
-config.Q                = diag([0.5,0.2,0.5]);  % process noise covariance
-config.H                = [1,0,0;0,1,0];        % observation matrix
-config.r                = 2.5;                % Chi-square detector parameter
+config.Q                = diag([0.5,0.2]); %diag([0.5,0.2,0.1])  % process noise covariance
+config.H                = [1,0;0,1];%[1,0,0;0,1,0];       % observation matrix
+config.r                = 2.5;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.1;                  % time delay
+config.tau              = 0.0;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = false;                % true if generate plots
+config.plot             = true;                  % true if generate plots
 
 weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -44,8 +45,8 @@ idm_para.sigma  = 4;        % acceleration exponent
 idm_para.s0     = 2;        % minimum distance (m)
 idm_para.T      = 1.5;      % safe time headway (s)
 idm_para.v0     = 24;       % desired velocity (m/s)
-idm_para.a_max  = 0.2;      % max acceleration of random term 
-idm_para.a_min  = -0.3;    % max deceleration of random term
+idm_para.a_max  = 0.0;      % max acceleration of random term 
+idm_para.a_min  = -0.0;    % max deceleration of random term
 
 %==========================================================================
 %   AnomalyConfig: 
@@ -73,7 +74,7 @@ AnomalyConfig.seed          = 10; % random seed controler
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
 % car-following model 
 
-x0 = 10;    % initial location of following vehicle
+x0 = 5;    % initial location of following vehicle
 v0 = 1;     % initial speed of following vehicle
 
 tau     = config.tau;       % human/sensor reaction time delay with unit "s"
@@ -229,9 +230,17 @@ if(config.plot)
     plot(p.rmse), legend('RMSE sequence');
     
     figure
+    R = 1.5;
+    theta=0:0.01:2*pi;
+    x=R*sin(theta);
+    y=R*cos(theta);
+    plot(x,y,'LineWidth',2)
+    axis equal
+    hold on
+    
     scatter(p0.innov(1,:),p0.innov(2,:)),hold on
-    scatter(mean_location,mean_speed,'filled')
-    xlim([-7 7]), ylim([-7 7])
+    scatter(mean_location,mean_speed,'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
+    xlim([-3.5 3.5]), ylim([-3.5 3.5])
     xlabel('Innovation of location'), ylabel('Innovation of speed')
     grid on
     title('Scatter plot of innovation sequence')
