@@ -75,7 +75,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     
     S = t*tmp+R;                                % innovation covariance
     
-    p.innov = abs(S.^(0.5)) \ y_tilde;
+    p.innov = abs(S.^(0.5)) \ y_tilde;          % normalized innovation
 
     K = tmp/(S+2*eps);                          % Kalman gain
     

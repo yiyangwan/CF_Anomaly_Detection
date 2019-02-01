@@ -25,6 +25,8 @@ p.score     = zeros(1,n_sample); % score of OCSVM classifier
 error_idx   = zeros(n_sample,1);
 
 delta_t = config.delta_t;   % sensor sampling time interval
+tau     = config.tau;       % human/sensor reaction time delay with unit "s"
+t  = floor(tau/delta_t);    % time delay in discrete state-transition model
 
 if(~config.bias_correct)
     s0      = s_f(:,1);         % initial state prediction for EKF
@@ -81,15 +83,15 @@ end
 h       = @(s) H*s; % function handle for measurement model
 del_h   = @(s) H;   % function handle for the Jacobian of motion model
 
-for i = 1:n_sample
+for i = t+1:n_sample
     if(rem(i,config.print) == 0)
         fprintf('processing %d th samples...\n',i);
     end
     
     if(~config.ukf)
-        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
+        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
     elseif(config.ukf)
-        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ukf(f,h,s_f(:,i),x_hat,P_hat,s_l(:,i),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);    
+        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ukf(f,h,s_f(:,i),x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);    
     end
     vlist(:,:,1:N-1)    = vlist(:,:,2:end);         %shift left
     vlist(:,:,N)        = p1.y_tilde*p1.y_tilde';
