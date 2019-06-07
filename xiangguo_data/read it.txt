@@ -1,0 +1,22 @@
+d0 mean no delay, d5 means 0.5 secs delay, d15 means 1.5 secs delay.
+
+px_sub is the position of subject vehicle
+vx_sub is the velocity of subject vehicle
+
+In s_pos_6, the 3rd row is the position of leading vehicle
+In s_vel_6, the 3rd row is the velocity of leading vehicle
+
+x(600) means position at (600/10=60) s
+
+
+
+It should be noted that the trajecory may be computed by car following or optimal control.
+You should choose the time that itstd_time_cf==0, which means optimal control is used. Otherwise, itstd_time_cf > 0, then car following is used.
+
+for i=1:20000
+if max(itstd_time_cf(i:i+600)==0)
+special_i=i;
+end
+end
+
+The code above can help you find (special_i:special_i+600) the 60 seconds that optimal control is used.

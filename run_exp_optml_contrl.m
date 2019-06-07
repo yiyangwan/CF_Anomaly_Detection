@@ -1,53 +1,55 @@
 clear
 
-filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
-load(strcat(filePath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
-load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
+filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\xiangguo_data\'; % dataset location
+load(strcat(filePath,'train_data_real.mat')) % info of the leading vehicle = s_l_test for testing n_sample * m
+load(strcat(filePath,'train_data_real.mat')) % info of the leading vechicle = s_l_train for training n_sample * m
 % load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
-raw_data = s_train;
+raw_data = s_l_train; s_l_test = s_l_train; s_f_test = s_f_train;
+s        = s_l_test;
 % s = s_train;
 
 % Config data structure====================================================
 config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
-config.adptQ        = true;        % if true, then adaptively estimate process noise covariance matrix Q
+config.adptQ        = false;         % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
 config.detection    = false;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
-config.print        = 1000;         % interval of iterations for progress printing
-config.ukf          = false;        % true if using Unscented Kalman Filter      
-config.bias_correct = false;        % true if enable bias correction in EKF
+config.print        = 1000;          % interval of iterations for progress printing
+config.ukf          = false;         % true if using Unscented Kalman Filter      
+config.bias_correct = 0;            % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [2.5; 2.7; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.5; 1; 1.2];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
-config.Q                = diag([0.5,0.3]); %diag([0.5,0.2,0.1])  % process noise covariance
+config.Q                = diag([0.5,1]); %diag([0.5,0.2,0.1])  % process noise covariance
 config.H                = [1,0;0,1];%[1,0,0;0,1,0];       % observation matrix
-config.r                = 2.5;                  % Chi-square detector parameter
+config.r                = 40.96;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.5;                  % time delay
+config.tau              = 0.00;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
 config.plot             = true;                  % true if generate plots
 
-weight_vector = [3,7];                          % fogeting factor for adaptive EKF
+weight_vector = [3 7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
 
 % IDM CF model parameter===================================================
-idm_para.a = 0.73;      % maximum acceleration
-idm_para.b = 1.67;      % comfortable deceleration
-idm_para.sigma = 4;     % acceleration exponent 
-idm_para.s0 = 2;        % minimum distance (m)
-idm_para.T = 1.5;       % safe time headway (s)
-idm_para.v0 = 24;       % desired velocity (m/s)
-idm_para.a_max = 0.1;   % max acceleration of random term 
-idm_para.a_min = -0.5;  % max deceleration of random term
-idm_para.Length = 0;    % vehicle length (m)
+idm_para.a      = [1.29109474020492];     % maximum acceleration
+idm_para.b      = [1];     % comfortable deceleration
+idm_para.sigma  = 4;        % acceleration exponent 
+idm_para.s0     = [2.99232005585400];        % minimum distance (m)
+idm_para.T      = [3];      % safe time headway (s)
+idm_para.v0     = [10];       % desired velocity (m/s)
+idm_para.a_max  = 0.0;      % max acceleration of random term 
+idm_para.a_min  = -0.0;    % max deceleration of random term
+idm_para.Length = 7;        % vehicle length (m)
+
 %==========================================================================
 %   AnomalyConfig: 
 %       .index: index of anomaly
@@ -61,7 +63,7 @@ idm_para.Length = 0;    % vehicle length (m)
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent       = 0.000;
+AnomalyConfig.percent       = 0.00;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
 AnomalyConfig.NoiseVar      = diag(sqrt([1, 1]));
@@ -74,17 +76,19 @@ AnomalyConfig.seed          = 10; % random seed controler
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
 % car-following model 
 
-x0 = 5;    % initial location of following vehicle
-v0 = 1;     % initial speed of following vehicle
+
+x0 = s_f_test(1,1);    % initial location of following vehicle for testing
+v0 = s_f_test(1,2);     % initial speed of following vehicle for testing
 
 tau     = config.tau;       % human/sensor reaction time delay with unit "s"
 delta_t = config.delta_t;   % sampling time interval with unit "s"
 
 t  = floor(tau/delta_t);    % time delay in discrete state-transition model
 
-s_f_train   = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
+% s_f_train   = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
 
-s_f         = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
+% s_f         = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
+s_f           = s_f_test;
 
 save(strcat(filePath,'following_state_test.mat'),'s_f')         % testing data
 save(strcat(filePath,'following_state_train.mat'),'s_f_train')  % training data
@@ -92,7 +96,7 @@ save(strcat(filePath,'following_state_train.mat'),'s_f_train')  % training data
 s   = s(1:end,:)';
 s_f = s_f(1:end,:)'; % baseline of testing data
 
-s_train     = s_train(1:end,:)';
+s_train     = s_l_train(1:end,:)';
 s_f_train   = s_f_train(1:end,:)';
 % Generate anomalous data
 [s_la, s_fa, AnomalyConfig] = generateAnomaly(s, s_f, AnomalyConfig); 
@@ -168,7 +172,8 @@ disp(Summary.results)
 if(config.plot)
     close all;
     
-    s_cf = s_f;
+    s_cf = cf_model(s_l_test(:,1)',s_l_test(:,2)',x0,v0,delta_t,t,tau,idm_para);
+    s_cf = s_cf';
     
     figure(1)
     
@@ -205,7 +210,6 @@ if(config.plot)
     v_f1 = s_fa(2,:);
     
     figure(2)
-    
     subplot(411),
     plot(v_l);hold on; plot(v_f1);legend('leading-raw','following-raw'); ylim([0,40]);
     subplot(412),
@@ -225,7 +229,7 @@ if(config.plot)
     plot(xx(AnomalyConfig.index(1,:)),x_f2(AnomalyConfig.index(1,:)),'d');
     legend('leading-raw','following-filtered','Anomaly');
 
-    figure (3)
+    figure(3)
     subplot(511),
     h_x = histogram(p0.innov(1,:));
     h_x.BinWidth = 0.05;
@@ -256,7 +260,7 @@ if(config.plot)
     plot(p.rmse), legend('RMSE sequence');
     
     figure(4)
-    R = sqrt(config.r);
+    R = 1.5;
     theta=0:0.01:2*pi;
     x=R*sin(theta);
     y=R*cos(theta);
@@ -266,10 +270,9 @@ if(config.plot)
     
     scatter(p0.innov(1,:),p0.innov(2,:)),hold on
     scatter(mean_location,mean_speed,'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
-    xlim([-5 5]), ylim([-5 5])
+    xlim([-3.5 3.5]), ylim([-3.5 3.5])
     xlabel('Innovation of location'), ylabel('Innovation of speed')
     grid on
     title('Scatter plot of innovation sequence')
-    legend('\chi^2 detector threshold','innovation','innovation centroid')
     
 end

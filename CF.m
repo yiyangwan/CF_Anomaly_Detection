@@ -1,6 +1,6 @@
 clear
 close all
-dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\dataset\'; % dataset location
+dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
 load(strcat(dataPath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
 load(strcat(dataPath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
 
@@ -22,6 +22,7 @@ idm_para.T = 1.5; % safe time headway (s)
 idm_para.v0 = 24; % desired velocity (m/s)
 idm_para.a_max = 0.1; % max acceleration of random term 
 idm_para.a_min = -0.1; % max deceleration of random term
+idm_para.Length = 5; % vehicle length (m)
 
 config.OCSVM = true; % if true, then use OCSVM instead of Chi-square detector
 config.OCSVM_threshold = [3; 4.5; 6]; % OCSVM model threshold for training

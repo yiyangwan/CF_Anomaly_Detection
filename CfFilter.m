@@ -174,13 +174,14 @@ sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
 slag1   = Z(:,1);
 u1      = u(1,:); % input from the leading vehicle
 u2      = u(2,:); % input from the leading vehicle
 s_d     = [ slag1(2);
             a*(1 - (slag1(2)/v0)^sigma - ...
-            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)))^2)];
+            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2)];
 end
 
 function s_d = non_CF(t,s,Z)
@@ -209,9 +210,10 @@ sigma = idm_para.sigma; % acceleration exponent
 s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
-s_der = [0, 1; a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1))^(-3) ), ...
-    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)) )^2 * (s0 + s(2)*T+ ( s(2)*(s(2)-u(2))/2/sqrt(a*b) ) ) * (T + 1/sqrt(a*b)/2 * (2*s(2) - u(2)) ) ) ];
+s_der = [0, 1; a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1)-Length)^(-3) ), ...
+    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)-Length) )^2 * (s0 + s(2)*T+ ( s(2)*(s(2)-u(2))/2/sqrt(a*b) ) ) * (T + 1/sqrt(a*b)/2 * (2*s(2) - u(2)) ) ) ];
 end
 
 function s_der = non_CF_der(s)
@@ -240,12 +242,13 @@ sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
 u1      = u(1,:);           % input from the leading vehicle
 u2      = u(2,:);           % input from the leading vehicle
 s_d     = [ s(2);
             a*(1 - (s(2)/v0)^sigma - ...
-            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)))^2)];
+            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2)];
 end
 
 function sys_his = dde_his(t,s)
@@ -263,10 +266,11 @@ sigma = idm_para.sigma; % acceleration exponent
 s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
 s_der = [0, 1, 1; ...
-    a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1))^(-3) ), ...
-    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)) )^2 * ...
+    a*(-2 * ( s0+s(2)*T + ( s(2)*(s(2)-u(2)) )/(2*sqrt(a*b)) )^2 * (u(1)-s(1)-Length)^(-3) ), ...
+    a*( -sigma*(1/v0) * (s(2)/v0)^(sigma-1) - 2*(1/(u(1) - s(1)-Length) )^2 * ...
     (s0 + s(2)*T+ ( s(2)*(s(2)-u(2))/2/sqrt(a*b) ) ) * (T + 1/sqrt(a*b)/2 ...
     * (2*s(2) - u(2)) ) ), 0;...
     0, 0, 0];
@@ -290,13 +294,14 @@ sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
 slag1   = Z(:,1);
 u1      = u(1,:); % input from the leading vehicle
 u2      = u(2,:); % input from the leading vehicle
 s_d     = [ slag1(2) + slag1(3);
             a*(1 - (slag1(2)/v0)^sigma - ...
-            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)))^2);...
+            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2);...
             0];
 end
 
@@ -316,11 +321,12 @@ sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
+Length  = idm_para.Length;  % vehicle length (m)
 
 u1      = u(1,:);           % input from the leading vehicle
 u2      = u(2,:);           % input from the leading vehicle
 s_d     = [ s(2)+s(3);
             a*(1 - (s(2)/v0)^sigma - ...
-            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)))^2);...
+            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2);...
             0];
 end

@@ -33,9 +33,9 @@ sigma = idm_para.sigma; % acceleration exponent
 s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
-
+Length = idm_para.Length; % vehicle length
 % v_1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf+a_random*t*delta_t;
-v_f1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf))^2) + vf;
+v_f1 = delta_t * a*(1 - (vf/v0)^sigma - (distance(vf,vf-vl,a,b,T,s0)/(xl-xf-Length))^2) + vf;
 x_f1 = vf * delta_t + xf +a_random * tau * delta_t;
 s1 = [x_f1;v_f1];
 end
