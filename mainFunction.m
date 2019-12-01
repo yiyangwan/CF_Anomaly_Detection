@@ -89,10 +89,11 @@ acc  = (TP+TN)/(TN+FN+FP+TP);
 spec = TN/(TN+FP);
 sen  = TP / (TP + FN);
 ppv  = TP/(TP+FP);
+fpRate = 1-spec;
 
-metric_name = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
-    ;'Precision'};
-metric_values = [TP;FP;TN;FN;f1;acc;spec;sen;ppv];
+metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
+    ;'Precision';'FP rate'};
+metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate];
 
 Summary.configuration = config;
 Summary.car_following_para = idm_para;

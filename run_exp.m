@@ -1,3 +1,4 @@
+
 clear
 
 filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
@@ -9,10 +10,10 @@ raw_data = s_train;
 
 % Config data structure====================================================
 config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
-config.adptQ        = true;        % if true, then adaptively estimate process noise covariance matrix Q
+config.adptQ        = false;        % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
-config.detection    = false;        % true if start using fault detecter
+config.detection    = true;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter      
@@ -25,15 +26,21 @@ if(config.ukf)                      % UKF parameters
 end
 config.OCSVM_threshold  = [2.5; 2.7; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
-config.Q                = diag([0.5,0.3]); %diag([0.5,0.2,0.1])  % process noise covariance
-config.H                = [1,0;0,1];%[1,0,0;0,1,0];       % observation matrix
-config.r                = 2.5;                  % Chi-square detector parameter
+
+if(config.bias_correct)
+    config.Q                = diag([0.5,0.3,10]);  %diag([0.5,0.3]);% process noise covariance
+    config.H                = [1,0,1;0,1,0];    % observation matrix
+else
+    config.Q                = diag([0.5,0.3]);  % process noise covariance
+    config.H                = [1,0;0,1];        % observation matrix
+end
+config.r                = 0.001*2^(0);                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.5;                  % time delay
+config.tau              = 1.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = true;                  % true if generate plots
+config.plot             = false;                 % true if generate plots
 
 weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -43,9 +50,9 @@ idm_para.a = 0.73;      % maximum acceleration
 idm_para.b = 1.67;      % comfortable deceleration
 idm_para.sigma = 4;     % acceleration exponent 
 idm_para.s0 = 2;        % minimum distance (m)
-idm_para.T = 1.5;       % safe time headway (s)
+idm_para.T = 1.0;       % safe time headway (s)
 idm_para.v0 = 24;       % desired velocity (m/s)
-idm_para.a_max = 0.1;   % max acceleration of random term 
+idm_para.a_max = -0.4;   % max acceleration of random term 
 idm_para.a_min = -0.5;  % max deceleration of random term
 idm_para.Length = 0;    % vehicle length (m)
 %==========================================================================
@@ -61,7 +68,7 @@ idm_para.Length = 0;    % vehicle length (m)
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent       = 0.000;
+AnomalyConfig.percent       = 0.005;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
 AnomalyConfig.NoiseVar      = diag(sqrt([1, 1]));
@@ -267,9 +274,27 @@ if(config.plot)
     scatter(p0.innov(1,:),p0.innov(2,:)),hold on
     scatter(mean_location,mean_speed,'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
     xlim([-5 5]), ylim([-5 5])
-    xlabel('Innovation of location'), ylabel('Innovation of speed')
+    xlabel('Innovation of location','FontSize',16), ylabel('Innovation of speed','FontSize',16)
     grid on
-    title('Scatter plot of innovation sequence')
-    legend('\chi^2 detector threshold','innovation','innovation centroid')
+    title('Scatter plot of innovation sequence','FontSize',16)
+    legend('\chi^2 detector threshold','innovation','innovation centroid','FontSize',14)
+    
+    figure(5)
+    subplot(211),
+    plot(v_l,'LineWidth',3);hold on; plot(v_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14); ylim([0,40]);
+    
+    xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Speed (m/s)','FontSize',16)
+    grid on
+    
+    subplot(212),
+    plot(x_l,'LineWidth',3);hold on; plot(x_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14);
+    
+    xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Distance (m)','FontSize',16)
+    grid on
+    x_f2 = shat(1,:);
+    v_f2 = shat(2,:);
+    
+    
+    
     
 end

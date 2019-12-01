@@ -30,15 +30,18 @@ AllCombine = allcomb(count_keys1{:}); % enumerate all combinations of parameters
 [m1,~] = size(AllCombine);
 
 % Config data structure====================================================
+if(config.bias_correct)
+    config.Q                = diag([0.5,0.3,10]);  %diag([0.5,0.3]);% process noise covariance
+    config.H                = [1,0,1;0,1,0];    % observation matrix
+else
+    config.Q                = diag([0.5,0.3]);  % process noise covariance
+    config.H                = [1,0;0,1];        % observation matrix
+end
 config.H = eye(2);
 config.delta_t = 0.1;
 config.adptQ = false;
 config.adptR = false;
-config.R     = diag([0.01,0.01]);    % observation noise covariance
 config.use_predict = false;
-config.ukf = false;
-config.print = false;
-config.detection = true;
 
 weight_vector = [3,7];
 config.weight = weight_vector./sum(weight_vector); % weights for AdEKF when time window size is 2
@@ -50,9 +53,8 @@ idm_para.sigma = 4; % acceleration exponent
 idm_para.s0 = 2; % minimum distance (m)
 idm_para.T = 1.5; % safe time headway (s)
 idm_para.v0 = 24; % desired velocity (m/s)
-idm_para.a_max = -0.4; % max acceleration of random term 
-idm_para.a_min = -0.5; % max deceleration of random term
-idm_para.Length = 0; % vehicle length (m)
+idm_para.a_max = 0.0; % max acceleration of random term 
+idm_para.a_min = -0.0; % max deceleration of random term
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
 AnomalyConfig.seed = 10; % random seed controler
@@ -80,15 +82,7 @@ for i = 1:m1
     config.use_CF = values{12}{AllCombine(i,12)}; % use CF model or not
     config.use_predict = values{13}{AllCombine(i,13)}; % replace estimate as predict when anomaly detected or not
     
-    config.bias_correct = values{14}{AllCombine(i,14)}; % whether use augmented EKF or not
-    
-    if(config.bias_correct)
-        config.Q                = diag([0.5,0.3,10]);  %diag([0.5,0.3]);% process noise covariance
-        config.H                = [1,0,1;0,1,0];    % observation matrix
-    else
-        config.Q                = diag([0.5,0.3]);  % process noise covariance
-        config.H                = [1,0;0,1];        % observation matrix
-    end
+    config.bias_correct = values{13}{AllCombine(i,14)}; % whether use augmented EKF or not
     
     Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data,s);
     path = 'D:\research\CF_detection\results\'; % result files location
