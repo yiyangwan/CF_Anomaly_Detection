@@ -1,7 +1,7 @@
 clear
 clc
 
-dataPath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
+dataPath = 'D:\Documents\MATLAB\CF_Anomaly_Detection\dataset\'; % dataset location
 load(strcat(dataPath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
 load(strcat(dataPath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
 raw_data   = s_train;
@@ -30,7 +30,6 @@ AllCombine = allcomb(count_keys1{:}); % enumerate all combinations of parameters
 [m1,~] = size(AllCombine);
 
 % Config data structure====================================================
-config.H = eye(2);
 config.delta_t = 0.1;
 config.adptQ = false;
 config.adptR = false;
@@ -51,7 +50,7 @@ idm_para.s0 = 2; % minimum distance (m)
 idm_para.T = 1.5; % safe time headway (s)
 idm_para.v0 = 24; % desired velocity (m/s)
 idm_para.a_max = -0.4; % max acceleration of random term 
-idm_para.a_min = -0.5; % max deceleration of random term
+idm_para.a_min = -0.9; % max deceleration of random term
 idm_para.Length = 0; % vehicle length (m)
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
@@ -83,7 +82,7 @@ for i = 1:m1
     config.bias_correct = values{14}{AllCombine(i,14)}; % whether use augmented EKF or not
     
     if(config.bias_correct)
-        config.Q                = diag([0.5,0.3,10]);  %diag([0.5,0.3]);% process noise covariance
+        config.Q                = diag([0.5,0.3,1e0]);  %diag([0.5,0.3]);% process noise covariance
         config.H                = [1,0,1;0,1,0];    % observation matrix
     else
         config.Q                = diag([0.5,0.3]);  % process noise covariance
@@ -91,8 +90,8 @@ for i = 1:m1
     end
     
     Summary{i} = mainFunction(config,idm_para,AnomalyConfig,raw_data,s);
-    path = 'D:\research\CF_detection\results\'; % result files location
-    filename = strcat( path , sprintf('Summary_%d.txt',i)); 
+    path = 'D:\Documents\MATLAB\CF_Anomaly_Detection\results\'; % result files location
+    filename = strcat( path , sprintf('Summary_%d_12_1_19.txt',i)); 
     writetable(Summary{i}.results,filename)
     
     fprintf('Run %d:\n',i);
@@ -100,3 +99,22 @@ for i = 1:m1
     fprintf('results');
     disp(Summary{i}.results);
 end  
+
+
+%% Caculating AUC and ROC
+for i = 1:m1
+   sen1(i) = table2array(Summary{i}.results(8,2));
+   fpr1(i) = table2array(Summary{i}.results(10,2));
+end
+
+sen1(i+1:i+2) = [0,1];
+fpr1(i+1:i+2) = [0,1];
+
+% plot
+
+% plot(sort(fpr1),sort(sen1),'LineWidth',1.8); 
+% hold on
+   
+auc = trapz(sort(fpr1),sort(sen1))
+xlim([0,0.4]);ylim([0.1,1])
+xlabel('$1-specificity$', 'Interpreter','latex'), ylabel('$sensitivity$','Interpreter','latex')

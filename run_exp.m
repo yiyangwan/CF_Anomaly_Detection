@@ -1,7 +1,7 @@
 
 clear
 
-filePath = 'C:\Users\SQwan\Documents\MATLAB\CF\CF_Anomaly_Detection\dataset\'; % dataset location
+filePath = 'D:\Documents\MATLAB\CF_Anomaly_Detection\dataset\'; % dataset location
 load(strcat(filePath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
 load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
 % load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
@@ -13,11 +13,11 @@ config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-squ
 config.adptQ        = false;        % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
-config.detection    = true;        % true if start using fault detecter
+config.detection    = false;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter      
-config.bias_correct = false;        % true if enable bias correction in EKF
+config.bias_correct = true;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
@@ -28,7 +28,7 @@ config.OCSVM_threshold  = [2.5; 2.7; 3];        % OCSVM model threshold for trai
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
-    config.Q                = diag([0.5,0.3,10]);  %diag([0.5,0.3]);% process noise covariance
+    config.Q                = diag([0.5,0.3,1e2]);  %diag([0.5,0.3]);% process noise covariance
     config.H                = [1,0,1;0,1,0];    % observation matrix
 else
     config.Q                = diag([0.5,0.3]);  % process noise covariance
@@ -36,11 +36,11 @@ else
 end
 config.r                = 0.001*2^(0);                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 1.5;                  % time delay
+config.tau              = 0.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = false;                 % true if generate plots
+config.plot             = true;                 % true if generate plots
 
 weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -53,7 +53,7 @@ idm_para.s0 = 2;        % minimum distance (m)
 idm_para.T = 1.0;       % safe time headway (s)
 idm_para.v0 = 24;       % desired velocity (m/s)
 idm_para.a_max = -0.4;   % max acceleration of random term 
-idm_para.a_min = -0.5;  % max deceleration of random term
+idm_para.a_min = -0.9;  % max deceleration of random term
 idm_para.Length = 0;    % vehicle length (m)
 %==========================================================================
 %   AnomalyConfig: 
@@ -68,7 +68,7 @@ idm_para.Length = 0;    % vehicle length (m)
 %       .BiasVar: Bias type anomaly covariance matrix with dimension m x m
 %       .DriftVar: Drift type anomaly max value
 
-AnomalyConfig.percent       = 0.005;
+AnomalyConfig.percent       = 0.000;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
 AnomalyConfig.NoiseVar      = diag(sqrt([1, 1]));
@@ -177,6 +177,11 @@ if(config.plot)
     
     s_cf = s_f;
     
+    if(config.bias_correct)
+        shat0 = shat;
+        shat= config.H*shat0;
+    end
+    
     figure(1)
     
     subplot(211)
@@ -196,6 +201,8 @@ if(config.plot)
     title('following vehicle speed')
     
     rmse_speed = sqrt(mean((s_f_test(2,:) - shat(2,:)).^2))
+    
+    err = immse(s_f_test,shat)
     
     [m,n] = size(s_fa);
 

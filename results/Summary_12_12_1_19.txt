@@ -1,0 +1,11 @@
+metric_name,metric_values
+TP,195
+FP,0
+TN,1771
+FN,28
+F1,0.933014354066986
+Accuracy,0.985957873620863
+Specificity,1
+Sensitivity,0.874439461883408
+Precision,1
+FP rate,0
