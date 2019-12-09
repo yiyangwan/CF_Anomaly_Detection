@@ -25,7 +25,7 @@ for i = 1 : ms1
 
 end
 
-AllCombine = allcomb(count_keys1{:}); % enumerate all combinations of parameters
+AllCombine = allcomb(count_keys1{1:13}); % enumerate all combinations of parameters
 
 [m1,~] = size(AllCombine);
 
@@ -54,8 +54,14 @@ idm_para.a_min = -0.9; % max deceleration of random term
 idm_para.Length = 0; % vehicle length (m)
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
-AnomalyConfig.seed = 10; % random seed controler
 
+seed = [1:1:20]; % random seed controler
+bias_correct = [values{1,14}{:}];
+
+for jj = 1:2
+    config.bias_correct = bias_correct(jj);
+for ii = 1: max(size(seed))
+    AnomalyConfig.seed = seed(ii);
 for i = 1:m1
     % Config data structure================================================
     config.OCSVM = values{1}{AllCombine(i,1)};
@@ -79,10 +85,10 @@ for i = 1:m1
     config.use_CF = values{12}{AllCombine(i,12)}; % use CF model or not
     config.use_predict = values{13}{AllCombine(i,13)}; % replace estimate as predict when anomaly detected or not
     
-    config.bias_correct = values{14}{AllCombine(i,14)}; % whether use augmented EKF or not
+%     config.bias_correct = values{14}{AllCombine(i,14)}; % whether use augmented EKF or not
     
     if(config.bias_correct)
-        config.Q                = diag([0.5,0.3,1e0]);  %diag([0.5,0.3]);% process noise covariance
+        config.Q                = diag([0.5,0.3,1e1]);  %diag([0.5,0.3]);% process noise covariance
         config.H                = [1,0,1;0,1,0];    % observation matrix
     else
         config.Q                = diag([0.5,0.3]);  % process noise covariance
@@ -98,23 +104,28 @@ for i = 1:m1
     disp(config); disp(AnomalyConfig);
     fprintf('results');
     disp(Summary{i}.results);
+    sen1(i) = table2array(Summary{i}.results(8,2));
+    fpr1(i) = table2array(Summary{i}.results(10,2));
 end  
 
 
 %% Caculating AUC and ROC
-for i = 1:m1
-   sen1(i) = table2array(Summary{i}.results(8,2));
-   fpr1(i) = table2array(Summary{i}.results(10,2));
-end
 
-sen1(i+1:i+2) = [0,1];
-fpr1(i+1:i+2) = [0,1];
+
+sen1 = [sen1,0,1];
+fpr1 = [fpr1,0,1];
 
 % plot
 
 % plot(sort(fpr1),sort(sen1),'LineWidth',1.8); 
 % hold on
-   
-auc = trapz(sort(fpr1),sort(sen1))
-xlim([0,0.4]);ylim([0.1,1])
-xlabel('$1-specificity$', 'Interpreter','latex'), ylabel('$sensitivity$','Interpreter','latex')
+% xlim([0,0.4]);ylim([0.1,1])
+% xlabel('$1-specificity$', 'Interpreter','latex'), ylabel('$sensitivity$','Interpreter','latex')   
+
+auc(jj,ii) = trapz(sort(fpr1),sort(sen1));
+end
+end
+avr = mean(auc,2)
+stdd = std(auc,0,2)
+[t1,h1] = ttest(auc(1,:),auc(2,:))
+[t2,h2] = ttest2(auc(1,:),auc(2,:))
