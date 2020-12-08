@@ -94,8 +94,11 @@ s_f_train   = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
 
 s_f         = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
 
-save(strcat(filePath,'following_state_test.mat'),'s_f')         % testing data
-save(strcat(filePath,'following_state_train.mat'),'s_f_train')  % training data
+save(strcat(filePath, 'following_state_test_baseline.mat'),'s_f')         % testing data
+writematrix(s_f, strcat(filePath,'following_state_test_baseline.csv'))
+save(strcat(filePath, 'following_state_train_baseline.mat'), 's_f_train') 
+writematrix(s_f_train, strcat(filePath,'following_state_train_baseline.csv'))
+% training data
 %% Run experiments
 s   = s(1:end,:)';
 s_f = s_f(1:end,:)'; % baseline of testing data
@@ -107,7 +110,9 @@ s_f_train   = s_f_train(1:end,:)';
 AnomalyIdx = AnomalyConfig.index; % ground truth
 
 s_test = s_la; s_f_test = s_fa; % test dataset
-
+writematrix(s_fa', strcat(filePath,'following_state_test_anomalous.csv'))
+writematrix(s_test', strcat(filePath,'leading_state_test_anomalous.csv'))
+writematrix(AnomalyIdx', strcat(filePath,'anomaly_index.csv'))
 %% Run Models
 % Generate statistics for baseline data
 if(config.OCSVM)
