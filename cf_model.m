@@ -28,7 +28,8 @@ else
     t = 0; % make sure t = 0 when there is no time delay
 end
 for i = 1:n_step
-    s = idm(x_l(i),v_l(i),x_f_pre,v_f_pre,delta_t,t,tau,idm_para);
+    tau1 = normrnd(tau,idm_para.tau_var);
+    s = idm(x_l(i),v_l(i),x_f_pre,v_f_pre,delta_t,t,tau1,idm_para);
     x_f(i+t) = s(1) ; v_f(i+t) = s(2); 
     x_f_pre = x_f(i+t);
     v_f_pre = v_f(i+t);

@@ -52,6 +52,7 @@ idm_para.v0 = 24; % desired velocity (m/s)
 idm_para.a_max = -0.4; % max acceleration of random term 
 idm_para.a_min = -0.9; % max deceleration of random term
 idm_para.Length = 0; % vehicle length (m)
+idm_para.tau_var =1;    % variance of random time delay
 
 AnomalyConfig.anomaly_type = {'Noise','Bias','Drift'};
 
