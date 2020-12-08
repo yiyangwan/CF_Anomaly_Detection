@@ -23,6 +23,7 @@ idm_para.v0 = 24; % desired velocity (m/s)
 idm_para.a_max = 0.1; % max acceleration of random term 
 idm_para.a_min = -0.1; % max deceleration of random term
 idm_para.Length = 5; % vehicle length (m)
+idm_para.tau_var = 0; % variance of stochastic time delay
 
 config.OCSVM = true; % if true, then use OCSVM instead of Chi-square detector
 config.OCSVM_threshold = [3; 4.5; 6]; % OCSVM model threshold for training
