@@ -72,9 +72,9 @@ idm_para.tau_var = 0;    % variance of random time delay
 AnomalyConfig.percent       = 0.005;
 AnomalyConfig.anomaly_type  = {'Noise','Bias','Drift'};
 AnomalyConfig.dur_length    = 20;
-AnomalyConfig.NoiseVar      = diag(sqrt([5, 5]));
-AnomalyConfig.BiasVar       = diag(sqrt([5, 5]));
-AnomalyConfig.DriftMax      = [5, 5];
+AnomalyConfig.NoiseVar      = diag(sqrt([1, 1]));
+AnomalyConfig.BiasVar       = diag(sqrt([1, 1]));
+AnomalyConfig.DriftMax      = [1, 1];
 AnomalyConfig.seed          = 1; % random seed controler
 %% Generate baseline data
 [x_l,v_l]           = data_process(raw_data);   % get leading vehicle location x_l, speed v_l and acceleration a_l for training 
