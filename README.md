@@ -1,4 +1,6 @@
-# CF_Anomaly_Detection
+# Real-Time Sensor Anomaly Detection and Recovery in Connected Automated Vehicle Sensors
+
+The code is for paper [Real-Time Sensor Anomaly Detection and Recovery in Connected Automated Vehicle Sensors](https://arxiv.org/pdf/1911.01531.pdf).
 
 This project aims at anomaly detection based on IDM car-following model, using EKF combined with One Class SVM.
 
