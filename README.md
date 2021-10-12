@@ -15,4 +15,4 @@ This project is about anomaly detection based on IDM car-following model, using 
 
 For more info please contact via my [email](yiyangw@umich.edu).
 
-Check out the abstract [here](https://yiyang920.github.io/publications/TITS20).
+Check out the abstract and full paper [here](https://yiyang920.github.io/publications/TITS20).
