@@ -9,3 +9,6 @@ Select run_exp.m for one run.
 Select grid_search.m for multiple runs with different parameters predefined in config.ini file.
 
 Need to be run on MATLAB 2017b or later verion.
+
+Prefered citation: 
+<br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Real-time sensor anomaly detection and recovery in connected automated vehicle sensors." <i>IEEE Transactions on Intelligent Transportation Systems 22.3 (2020): 1411-1421</i>.
