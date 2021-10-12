@@ -5,12 +5,12 @@ The code is for paper [Real-Time Sensor Anomaly Detection and Recovery in Connec
 <b>Prefered citation:</b> 
 <br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Real-time sensor anomaly detection and recovery in connected automated vehicle sensors." <i>IEEE Transactions on Intelligent Transportation Systems 22.3 (2020): 1411-1421</i>.
 
-This project aims at anomaly detection based on IDM car-following model, using EKF combined with One Class SVM.
+This project is about anomaly detection based on IDM car-following model, using EKF combined with One Class SVM detector.
 
-* Select <code>run_exp.m</code> for one run.
+* Select <code>run_exp.m</code> for single run.
 
-* Select <code>grid_search.m</code> for multiple runs with different parameters predefined in <code>config.ini</code> file.
+* Select <code>grid_search.m</code> for grid search with different parameters predefined in <code>config.ini</code> file.
 
-* Need to be run on MATLAB 2017b or later verion.
+* Need MATLAB 2017b or later verion.
 
 
