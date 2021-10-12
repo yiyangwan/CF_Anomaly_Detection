@@ -5,7 +5,7 @@ The code is for paper [Real-Time Sensor Anomaly Detection and Recovery in Connec
 <b>Prefered citation:</b> 
 <br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Real-time sensor anomaly detection and recovery in connected automated vehicle sensors." <i>IEEE Transactions on Intelligent Transportation Systems 22.3 (2020): 1411-1421</i>.
 
-* This project aims at anomaly detection based on IDM car-following model, using EKF combined with One Class SVM.
+This project aims at anomaly detection based on IDM car-following model, using EKF combined with One Class SVM.
 
 * Select <code>run_exp.m</code> for one run.
 
