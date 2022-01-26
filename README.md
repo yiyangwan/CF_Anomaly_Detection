@@ -3,7 +3,7 @@
 The code is for paper [Real-Time Sensor Anomaly Detection and Recovery in Connected Automated Vehicle Sensors](https://arxiv.org/pdf/1911.01531.pdf).
 
 And 
-[Anomaly detection in connected and automated vehicles using an augmented state formulation](https://arxiv.org/pdf/2004.09496.pdf).
+[Anomaly Detection in Connected and Automated Vehicles Using an Augmented State Formulation](https://arxiv.org/pdf/2004.09496.pdf).
 
 <b>Prefered citation:</b> 
 <br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Real-time sensor anomaly detection and recovery in connected automated vehicle sensors." <i>IEEE Transactions on Intelligent Transportation Systems 22.3 (2020): 1411-1421</i>.
