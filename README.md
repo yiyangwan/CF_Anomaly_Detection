@@ -9,7 +9,7 @@ And
 <br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Real-time sensor anomaly detection and recovery in connected automated vehicle sensors." <i>IEEE Transactions on Intelligent Transportation Systems 22.3 (2020): 1411-1421</i>.
 
 Or
-<br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Anomaly detection in connected and automated vehicles using an augmented state formulation." 2020 Forum on Integrated and Sustainable Transportation Systems (FISTS). IEEE, 2020</i>.
+<br>Wang, Yiyang, Neda Masoud, and Anahita Khojandi. "Anomaly detection in connected and automated vehicles using an augmented state formulation." <i>2020 Forum on Integrated and Sustainable Transportation Systems (FISTS). IEEE, 2020</i>.
 
 This project is about anomaly detection based on IDM car-following model, using EKF combined with One Class SVM detector.
 
