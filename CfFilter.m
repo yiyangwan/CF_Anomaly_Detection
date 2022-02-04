@@ -1,7 +1,7 @@
 function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth)
 % The function CfFilter will filter signal s_f given the input
 % signal s_l. Also wil do the detection. Anomaly can come from both s_l and s_f.
-% 
+%
 % Input: s_l: sensor reading of the leading vehilce's state with dimension m x n_sample
 %        s_f: sensor reading of the following vehicle's state as the
 %        baseline with dimension m x n_sample
@@ -11,7 +11,7 @@ function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth)
 %
 % Output: shat: filtered sensor reading of the following vehicle's state
 %         error: index of anomaly
-%         p: p.chi: chi-square statistics 
+%         p: p.chi: chi-square statistics
 %            p.innov: normalized innovation sequence
 
 n_sample    = max(size(s_f));       % number of samples
@@ -19,7 +19,7 @@ m           = size(config.H, 2);      % dimension of state
 m_measure   = size(s_f, 1);         % dimension of measurement
 
 shat        = zeros(m,n_sample);
-p.chi       = zeros(1,n_sample); % chi-square statistics 
+p.chi       = zeros(1,n_sample); % chi-square statistics
 p.innov  	= zeros(m_measure,n_sample); % normalized innovation sequences
 p.score     = zeros(1,n_sample); % score of OCSVM classifier
 error_idx   = zeros(n_sample,1);
@@ -35,7 +35,7 @@ else
 end
 
 P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
-    
+
 if(~config.ukf)
     x_hat   = s0;
     
@@ -64,15 +64,15 @@ if(config.use_CF)
     if(~config.bias_correct)
         f       = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
         del_f   = @(ss,uu) CF_idm_der(ss,uu,idm_para);          % function handle for the Jacobian of motion model
-
+        
         CF      = @(s,u) CF_idm2(s,u,idm_para);
     else
         f       = @(tt,ss,uu,ZZ) CF_idm_bias_corrt(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
         del_f   = @(ss,uu) CF_idm_der_bias_corrt(ss,uu,idm_para);          % function handle for the Jacobian of motion model
-
+        
         CF      = @(s,u) CF_idm2_bias_corrt(s,u,idm_para);
     end
-
+    
 else
     f       = @(tt,ss,uu,ZZ) non_CF(tt,ss,ZZ);  % function handle for motion model without considering CF model
     del_f   = @(ss,uu) non_CF_der(ss);          % function handle for the Jacobian of motion model without considering CF model
@@ -91,7 +91,7 @@ for i = t+1:n_sample
     if(~config.ukf)
         [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
     elseif(config.ukf)
-        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ukf(f,h,s_f(:,i),x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);    
+        [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ukf(f,h,s_f(:,i),x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
     end
     vlist(:,:,1:N-1)    = vlist(:,:,2:end);         %shift left
     vlist(:,:,N)        = p1.y_tilde*p1.y_tilde';
@@ -103,8 +103,8 @@ for i = t+1:n_sample
     % Adaptively estimate covariance matrices Q and R based on innovation
     % and residual sequences
     for j = 1:N
-       Ccum = Ccum + config.weight(j) * (K*squeeze(vlist(:,:,j))*K');
-       Ucum = Ucum + config.weight(j) * ( squeeze(ulist(:,:,j)) + config.H * P_next * config.H' );    
+        Ccum = Ccum + config.weight(j) * (K*squeeze(vlist(:,:,j))*K');
+        Ucum = Ucum + config.weight(j) * ( squeeze(ulist(:,:,j)) + config.H * P_next * config.H' );
     end
     
     if(config.adptQ)
@@ -127,7 +127,7 @@ for i = t+1:n_sample
     end
     
     if(i>=N_ocsvm-1)
-        psum = sum(p.innov(:,i-N_ocsvm+2:i),2); 
+        psum = sum(p.innov(:,i-N_ocsvm+2:i),2);
     else
         psum = sum(p.innov(:,1:i),2);
     end
@@ -135,7 +135,7 @@ for i = t+1:n_sample
     x_hat = x_next;
     P_hat = P_next;
     
-    % Ignore warining 
+    % Ignore warining
     
     [~, MSGID] = lastwarn();
     if(~isempty(MSGID))
@@ -148,13 +148,13 @@ end
 % function s_his = CF_his(t,x_hat)
 % % History function for CF_idm.
 % s_his = x_hat;
-% 
+%
 % end
-% 
+%
 % function P_his = P_his(t,P_hat)
 % % History function for f_del1.
 % P_his = P_hat;
-% 
+%
 % end
 
 function s_d = CF_idm(t,s,u,Z,idm_para)
@@ -170,7 +170,7 @@ function s_d = CF_idm(t,s,u,Z,idm_para)
 % a_max = idm_para.a;
 a       = idm_para.a;       % maximum acceleration
 b       = idm_para.b;       % comfortable deceleration
-sigma   = idm_para.sigma;   % acceleration exponent 
+sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
@@ -180,8 +180,8 @@ slag1   = Z(:,1);
 u1      = u(1,:); % input from the leading vehicle
 u2      = u(2,:); % input from the leading vehicle
 s_d     = [ slag1(2);
-            a*(1 - (slag1(2)/v0)^sigma - ...
-            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2)];
+    a*(1 - (slag1(2)/v0)^sigma - ...
+    (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2)];
 end
 
 function s_d = non_CF(t,s,Z)
@@ -190,14 +190,14 @@ function s_d = non_CF(t,s,Z)
 slag1   = Z(:,1);
 
 s_d     = [slag1(2);
-       0];
+    0];
 end
 
 function s_d = non_CF2(s)
 % This function inplements non_CF motion model with time delay.
 
 s_d     = [s(2);
-       0];
+    0];
 end
 
 function s_der = CF_idm_der(s,u,idm_para)
@@ -206,7 +206,7 @@ function s_der = CF_idm_der(s,u,idm_para)
 % Parameters---------------------------------------------------------------
 a = idm_para.a; % maximum acceleration
 b = idm_para.b; % comfortable deceleration
-sigma = idm_para.sigma; % acceleration exponent 
+sigma = idm_para.sigma; % acceleration exponent
 s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
@@ -238,7 +238,7 @@ function s_d = CF_idm2(s,u,idm_para)
 % Parameters---------------------------------------------------------------
 a       = idm_para.a;       % maximum acceleration
 b       = idm_para.b;       % comfortable deceleration
-sigma   = idm_para.sigma;   % acceleration exponent 
+sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
@@ -247,8 +247,8 @@ Length  = idm_para.Length;  % vehicle length (m)
 u1      = u(1,:);           % input from the leading vehicle
 u2      = u(2,:);           % input from the leading vehicle
 s_d     = [ s(2);
-            a*(1 - (s(2)/v0)^sigma - ...
-            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2)];
+    a*(1 - (s(2)/v0)^sigma - ...
+    (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2)];
 end
 
 function sys_his = dde_his(t,s)
@@ -262,7 +262,7 @@ function s_der = CF_idm_der_bias_corrt(s,u,idm_para)
 % Parameters---------------------------------------------------------------
 a = idm_para.a; % maximum acceleration
 b = idm_para.b; % comfortable deceleration
-sigma = idm_para.sigma; % acceleration exponent 
+sigma = idm_para.sigma; % acceleration exponent
 s0 = idm_para.s0; % minimum distance (m)
 T = idm_para.T; % safe time headway (s)
 v0 = idm_para.v0; % desired velocity (m/s)
@@ -290,7 +290,7 @@ function s_d = CF_idm_bias_corrt(t,s,u,Z,idm_para)
 % a_max = idm_para.a;
 a       = idm_para.a;       % maximum acceleration
 b       = idm_para.b;       % comfortable deceleration
-sigma   = idm_para.sigma;   % acceleration exponent 
+sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
@@ -300,9 +300,9 @@ slag1   = Z(:,1);
 u1      = u(1,:); % input from the leading vehicle
 u2      = u(2,:); % input from the leading vehicle
 s_d     = [ slag1(2) + slag1(3);
-            a*(1 - (slag1(2)/v0)^sigma - ...
-            (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2);...
-            0];
+    a*(1 - (slag1(2)/v0)^sigma - ...
+    (distance(slag1(2),slag1(2)-u2,a,b,T,s0)/(u1-slag1(1)-Length))^2);...
+    0];
 end
 
 function s_d = CF_idm2_bias_corrt(s,u,idm_para)
@@ -317,7 +317,7 @@ function s_d = CF_idm2_bias_corrt(s,u,idm_para)
 % Parameters---------------------------------------------------------------
 a       = idm_para.a;       % maximum acceleration
 b       = idm_para.b;       % comfortable deceleration
-sigma   = idm_para.sigma;   % acceleration exponent 
+sigma   = idm_para.sigma;   % acceleration exponent
 s0      = idm_para.s0;      % minimum distance (m)
 T       = idm_para.T;       % safe time headway (s)
 v0      = idm_para.v0;      % desired velocity (m/s)
@@ -326,7 +326,7 @@ Length  = idm_para.Length;  % vehicle length (m)
 u1      = u(1,:);           % input from the leading vehicle
 u2      = u(2,:);           % input from the leading vehicle
 s_d     = [ s(2)+s(3);
-            a*(1 - (s(2)/v0)^sigma - ...
-            (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2);...
-            0];
+    a*(1 - (s(2)/v0)^sigma - ...
+    (distance(s(2),s(2)-u2,a,b,T,s0)/(u1-s(1)-Length))^2);...
+    0];
 end

@@ -6,7 +6,7 @@ function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ekf(f,h,y,del_f,del_h,x_hat,P_
 % State space model is
 % X_k+1 = f_k(X_k,U_k) + V_k+1   -->  state update
 % Y_k = h_k(X_k) + W_k       -->  measurement
-% 
+%
 % V_k+1 zero mean uncorrelated gaussian, cov(V_k) = Q_k
 % W_k zero mean uncorrelated gaussian, cov(W_k) = R_k
 % V_k & W_j are uncorrelated for every k,j
@@ -43,11 +43,11 @@ function [x_next,P_next,x_dgr,P_dgr,p,K,error1] = ekf(f,h,y,del_f,del_h,x_hat,P_
 % P_dgr = current estimated error covariance
 % p: p.chi = chi-square test statistics
 %    p.innov = normalized innovation sequence
-%    p.y_tilde = innovation of current time 
+%    p.y_tilde = innovation of current time
 %    p.score = score of classifier
 % K = Kalman Gain
 % error = whether the current sensor reading is faulty (1) or not (0)
-% 
+%
 % -------------------------------------------------------------------------
 %
 
@@ -60,23 +60,23 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     mag_reset = 0.5^2;                            % var of P_hat using for resetting
     
     m = length(x_hat);                          % number of states
-
+    
     f1 = @(tt,ss,ZZ) f(tt,ss,u,ZZ);
-
-        
+    
+    
     error1 = 0;
     
     y_hat = h(x_hat);
-    y_tilde = y - y_hat;                        % innovation    
+    y_tilde = y - y_hat;                        % innovation
     p.y_tilde = y_tilde;
     
     t = del_h(x_hat);                           % 1st Jacobian
-    tmp = P_hat*t'; 
+    tmp = P_hat*t';
     
     S = t*tmp+R;                                % innovation covariance
     
     p.innov = abs(S.^(0.5)) \ y_tilde;          % normalized innovation
-
+    
     K = tmp/(S+2*eps);                          % Kalman gain
     
     p.chi = y_tilde'/(S+2*eps)*y_tilde;         % chi-square statistics
@@ -87,28 +87,28 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
             error1 = 1;
             
             if(config.use_predict)
-                x_dgr = x_hat;                  % if anomaly detected, use predict as estimate                
+                x_dgr = x_hat;                  % if anomaly detected, use predict as estimate
                 P_dgr = P_hat;
             elseif(~config.use_predict)
                 if(config.bias_correct)
                     x_dgr = [groundtruth;0];
                     t = del_h([groundtruth;0]);
                     P_hat = mag_reset*diag(ones(m,1)); % also reset P_hat to prevent divergence
-                
+                    
                 elseif(~config.bias_correct)
                     x_dgr = groundtruth;
-                    t = del_h(groundtruth); 
+                    t = del_h(groundtruth);
                 end
                 tmp = P_hat*t';
-                S = t*tmp+R; 
-                K = tmp/(S+2*eps); 
+                S = t*tmp+R;
+                K = tmp/(S+2*eps);
                 P_dgr = P_hat - K*t*P_hat;
             end
-        else 
+        else
             x_dgr = x_hat + K* y_tilde;
             P_dgr = P_hat - K*t*P_hat;
         end
-    
+        
     elseif(OCSVM)
         OCSVM_r = config.OCSVM_threshold;
         
@@ -128,12 +128,12 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
             error1 = 1;
             
             if(config.use_predict)
-                x_dgr = x_hat;                   % if anomaly detected, use predict as estimate 
+                x_dgr = x_hat;                   % if anomaly detected, use predict as estimate
                 P_dgr = P_hat;
             elseif(~config.use_predict)
                 if(~config.bias_correct)
                     x_dgr = groundtruth;
-                    t = del_h(groundtruth); 
+                    t = del_h(groundtruth);
                     %P_hat = mag_reset*diag(ones(size(x_hat)));
                 elseif(config.bias_correct)
                     x_dgr = [groundtruth,0];
@@ -141,11 +141,11 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
                     P_hat = mag_reset*diag(ones(size(m,1))); % also reset P_hat to prevent divergence
                 end
                 tmp = P_hat*t';
-                S = t*tmp+R; 
-                K = tmp/(S+2*eps); 
+                S = t*tmp+R;
+                K = tmp/(S+2*eps);
                 P_dgr = P_hat - K*t*P_hat;
             end
-        else 
+        else
             x_dgr = x_hat + K* y_tilde;
             P_dgr = P_hat - K*t*P_hat;
         end
@@ -163,13 +163,13 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     if(tau>0)
         if(~config.bias_correct)
             dde_sys = @(t,sys_state, Z) dde_ss(t, sys_state, Z, x_der, P_der);
-                        
+            
         elseif(config.bias_correct) % using bias correction with augmented state
             dde_sys = @(t,sys_state, Z) dde_ss_bias_corrt(t, sys_state, Z, x_der, P_der);
         end
         
-        sol_sys = dde23(dde_sys,tau,sys_his,[tk1,tk2]);    %solve DDE of state & covariance 
-    
+        sol_sys = dde23(dde_sys,tau,sys_his,[tk1,tk2]);    %solve DDE of state & covariance
+        
     elseif(tau==0)
         if(~config.bias_correct)
             ode_sys = @(t,s)  ode_ss(t,s,x_der, P_der);
@@ -187,7 +187,7 @@ if isa(f,'function_handle') && isa(del_f,'function_handle') && isa(del_h,'functi
     %===Force covariance matrix symmetric and positive on diag elements====
     %======================================================================
     for k = 1:m
-    	P_next(k,k) = abs(P_next(k,k));
+        P_next(k,k) = abs(P_next(k,k));
     end
     P_next = (P_next + P_next')*0.5;
     %======================================================================
@@ -217,9 +217,9 @@ function dde_sys = dde_ss(t, s, Z, x_der, P_der)
 xlag = Z(:,1);
 
 dde_sys = [ x_der([xlag(1);xlag(2)]);
-%             Eselect(x_der([xlag(1);xlag(2)]), 1);
-%             Eselect(x_der([xlag(1);xlag(2)]), 2);
-            P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)])];
+    %             Eselect(x_der([xlag(1);xlag(2)]), 1);
+    %             Eselect(x_der([xlag(1);xlag(2)]), 2);
+    P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)])];
 %             Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 1);
 %             Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 2);
 %             Eselect(P_der([xlag(1);xlag(2)], [xlag(3),xlag(5);xlag(4),xlag(6)]), 3);
@@ -230,9 +230,9 @@ function ode_sys = ode_ss(t,Z,x_der, P_der)
 x = Z(:,1);
 
 ode_sys = [ x_der([x(1);x(2)]);
-%             Eselect(x_der([x(1);x(2)]), 1);
-%             Eselect(x_der([x(1);x(2)]), 2);
-            P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)])];
+    %             Eselect(x_der([x(1);x(2)]), 1);
+    %             Eselect(x_der([x(1);x(2)]), 2);
+    P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)])];
 %             Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 1);
 %             Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 2);
 %             Eselect(P_der([x(1);x(2)], [x(3),x(5);x(4),x(6)]), 3);
@@ -245,10 +245,10 @@ function dde_sys = dde_ss_bias_corrt(t, s, Z, x_der, P_der)
 xlag = Z(:,1);
 
 dde_sys = [ x_der([xlag(1);xlag(2);xlag(3)]);
-%             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 1);
-%             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 2);
-%             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 3);
-            P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)])];
+    %             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 1);
+    %             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 2);
+    %             Eselect(x_der([xlag(1);xlag(2);xlag(3)]), 3);
+    P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)])];
 %             Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 1);
 %             Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 2);
 %             Eselect(P_der([xlag(1);xlag(2);xlag(3)], [xlag(4),xlag(7),xlag(10);xlag(5),xlag(8),xlag(11);xlag(6),xlag(9),xlag(12)]), 3);
@@ -265,10 +265,10 @@ function ode_sys = ode_ss_bias_corrt(t,Z,x_der, P_der)
 x = Z(:,1);
 
 ode_sys = [ x_der([x(1);x(2);x(3)]);
-%             Eselect(x_der([x(1);x(2);x(3)]), 1);
-%             Eselect(x_der([x(1);x(2);x(3)]), 2);
-%             Eselect(x_der([x(1);x(2);x(3)]), 3);
-            P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)])];
+    %             Eselect(x_der([x(1);x(2);x(3)]), 1);
+    %             Eselect(x_der([x(1);x(2);x(3)]), 2);
+    %             Eselect(x_der([x(1);x(2);x(3)]), 3);
+    P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)])];
 %             Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 1);
 %             Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 2);
 %             Eselect(P_der([x(1);x(2);x(3)], [x(4),x(7),x(10);x(5),x(8),x(11);x(6),x(9),x(12)]), 3);
