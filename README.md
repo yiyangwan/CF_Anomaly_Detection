@@ -19,6 +19,6 @@ This project is about anomaly detection based on IDM car-following model, using 
 
 * Need MATLAB 2017b or later verion.
 
-For more info please contact via my [email](yiyangw@umich.edu).
+For more info please contact via my [email](mailto:yiyangw@umich.edu).
 
 Check out the abstract and full paper [here](https://yiyang920.github.io/publications/TITS20).
