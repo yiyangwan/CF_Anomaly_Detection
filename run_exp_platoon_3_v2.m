@@ -324,8 +324,9 @@ if(config.plot)
         svInd4 = config.SVMModel4.IsSupportVector;
 
         subplot(2,2,1)
-        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        plot(p.innov(1,:),p.innov(2,:),'k.')
         hold on
+        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
         plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid1)
         colorbar;
@@ -335,8 +336,9 @@ if(config.plot)
         hold off
 
         subplot(2,2,2)
-        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        plot(p.innov(1,:),p.innov(2,:),'k.')
         hold on
+        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
         plot(p0.innov(1,svInd2),p0.innov(2,svInd2),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid2)
         colorbar;
@@ -346,8 +348,9 @@ if(config.plot)
         hold off
 
         subplot(2,2,3)
-        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        plot(p.innov(1,:),p.innov(2,:),'k.')
         hold on
+        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
         plot(p0.innov(1,svInd3),p0.innov(2,svInd3),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid3)
         colorbar;
@@ -357,8 +360,9 @@ if(config.plot)
         hold off
 
         subplot(2,2,4)
-        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        plot(p.innov(1,:),p.innov(2,:),'k.')
         hold on
+        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
         plot(p0.innov(1,svInd4),p0.innov(2,svInd4),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid4)
         colorbar;
