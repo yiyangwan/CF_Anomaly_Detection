@@ -21,8 +21,10 @@ v_f_1 = s_f_1(:,2);
 % second following vehicle
 x0_2 = 0; % initial location of the first following vehicle
 v0_2 = 0; % initial speed of following vehicle
-x_l_2 = 0.8 * x_f_1 + 0.2 * x_l_1;
-v_l_2 = 0.8 * v_f_1 + 0.2 * v_l_1;
+a1 = 1;
+a2 = 0;
+x_l_2 = a1 * x_f_1 + a2 * x_l_1;
+v_l_2 = a1 * v_f_1 + a2 * v_l_1;
 s_l_2 = [x_l_2, v_l_2];
 
 s_f_2 = cf_model(x_l_2,v_l_2,x0_2,v0_2,delta_t,t,tau,idm_para);

@@ -7,7 +7,7 @@ function SVMModel = trainOCSVM(chi,p)
 %       SVMModel = OCSVM model
 
 train   = chi';
-[n,m]   = size(train); % n: # of training samples; m: # of dimension
+[n,~]   = size(train); % n: # of training samples; m: # of dimension
 label   = ones(n,1);
 
 %%------------------------ Train One-class SVM ----------------------------

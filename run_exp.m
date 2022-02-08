@@ -24,7 +24,7 @@ if(config.ukf)                      % UKF parameters
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [0.3; 1; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.29; 1; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
@@ -36,7 +36,7 @@ else
 end
 config.r                = 0.8;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.0;                  % time delay
+config.tau              = 0.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
@@ -128,12 +128,12 @@ end
 % Train several OCSVM models with different sensitivity levels
 if(config.OCSVM)
     [SVMModel1,SVMModel2,SVMModel3,SVMModel4] = trainmodel(p0.innov,config.OCSVM_threshold);
-    
+
     config.SVMModel1 = SVMModel1;
     config.SVMModel2 = SVMModel2;
     config.SVMModel3 = SVMModel3;
     config.SVMModel4 = SVMModel4;
-    
+
     % Test OCSVM
     fprintf('Entering testing phase...\n');
     [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
@@ -180,71 +180,71 @@ disp(Summary.results)
 %% Plotting
 if(config.plot)
     close all;
-    
+
     s_cf = s_f;
-    
+
     if(config.bias_correct)
         shat0 = shat;
         shat= config.H*shat0;
     end
-    
+
     figure(1)
-    
+
     subplot(211)
     plot(1:length(s_cf(1,:)),s_cf(1,:));
     hold on, plot(1:length(s_f_test(1,:)),s_f_test(1,:));
     plot(1:length(shat(1,:)),shat(1,:)); hold off
     legend('CF simulated','real data','filtered data')
     title('following vehicle location')
-    
+
     rmse_loc = sqrt(mean((s_f_test(1,:) - shat(1,:)).^2))
-    
+
     subplot(212)
     plot(1:length(s_cf(2,:)),s_cf(2,:));
     hold on, plot(1:length(s_f_test(2,:)),s_f_test(2,:));
     plot(1:length(shat(2,:)),shat(2,:)); hold off
     legend('CF simulated', 'real data','filtered data')
     title('following vehicle speed')
-    
+
     rmse_speed = sqrt(mean((s_f_test(2,:) - shat(2,:)).^2))
-    
+
     err = immse(s_f_test,shat)
-    
+
     [m,n] = size(s_fa);
-    
+
     for i = 1:n
         s_fa(:,i) = s_fa(:,i) + config.R*randn(m,1);
     end
-    
+
     xx = 1:size(AnomalyConfig.index, 2);
-    
+
     x_l = s_la(1,:);
     v_l = s_la(2,:);
-    
+
     x_f1 = s_fa(1,:);
     v_f1 = s_fa(2,:);
-    
+
     figure(2)
-    
+
     subplot(411),
     plot(v_l);hold on; plot(v_f1);legend('leading-raw','following-raw'); ylim([0,40]);
     subplot(412),
     plot(x_l);hold on; plot(x_f1);legend('leading-raw','following-raw');
-    
+
     x_f2 = shat(1,:);
     v_f2 = shat(2,:);
-    
+
     subplot(413),
     plot(v_l);hold on; plot(v_f2);
     % plot(xx(err),v_f2(err),'b*');
     plot(xx(AnomalyConfig.index(2,:)),v_f2(AnomalyConfig.index(2,:)),'d');
     legend('leading-raw','following-filtered','Anomaly'); ylim([0,40]);
-    
+
     subplot(414),
     plot(x_l);hold on; plot(x_f2);
     plot(xx(AnomalyConfig.index(1,:)),x_f2(AnomalyConfig.index(1,:)),'d');
     legend('leading-raw','following-filtered','Anomaly');
-    
+
     figure (3)
     subplot(511),
     h_x = histogram(p0.innov(1,:));
@@ -256,25 +256,25 @@ if(config.plot)
     h_v.BinWidth = 0.05;
     xlim([-5,5]);
     mean_speed = mean(p0.innov(2,:))
-    
+
     subplot(512),
     hist = vecnorm(p0.innov(:,:),1);
     h_hist = histogram(hist);legend('Histogram $l1$ norm of innovation sequence','Interpreter','latex')
     h_hist.BinWidth = 0.05;
     xlim([-0,5]);
-    
+
     subplot(513),
     text = '$l1$ norm of innovation sequence';
     plot(hist), legend(text,'Interpreter','latex')
     ylim([0,5]);
-    
+
     subplot(514),
     text = '$\chi^2$ test statistcs sequence';
     plot(p.chi),  ylim([0,min(2*config.r,10)]), legend(text, 'Interpreter','latex');
-    
+
     subplot(515),
     plot(p.rmse), legend('RMSE sequence');
-    
+
     figure(4)
     R = sqrt(config.r);
     theta=0:0.01:2*pi;
@@ -283,7 +283,7 @@ if(config.plot)
     plot(x,y,'LineWidth',2)
     axis equal
     hold on
-    
+
     scatter(p0.innov(1,:),p0.innov(2,:)),hold on
     scatter(mean_location,mean_speed,'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
     xlim([-2.5 2.5]), ylim([-2.5 2.5])
@@ -291,23 +291,87 @@ if(config.plot)
     grid on
     title('Scatter plot of innovation sequence','FontSize',16)
     legend('\chi^2 detector threshold','innovation','innovation centroid','FontSize',14)
-    
+
     figure(5)
     subplot(211),
     plot(v_l,'LineWidth',3);hold on; plot(v_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14); ylim([0,40]);
-    
+
     xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Speed (m/s)','FontSize',16)
     grid on
-    
+
     subplot(212),
     plot(x_l,'LineWidth',3);hold on; plot(x_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14);
-    
+
     xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Distance (m)','FontSize',16)
     grid on
     x_f2 = shat(1,:);
     v_f2 = shat(2,:);
-    
-    
-    
-    
+
+    if config.OCSVM
+        figure(6)
+        h = 0.02; % Mesh grid step size
+        [X1,X2] = meshgrid(min(p0.innov(1,:)):h:max(p0.innov(1,:)),...
+            min(p0.innov(2,:)):h:max(p0.innov(2,:)));
+        [~,score1] = predict(config.SVMModel1,[X1(:),X2(:)]);
+        [~,score2] = predict(config.SVMModel2,[X1(:),X2(:)]);
+        [~,score3] = predict(config.SVMModel3,[X1(:),X2(:)]);
+        [~,score4] = predict(config.SVMModel4,[X1(:),X2(:)]);
+
+        scoreGrid1 = reshape(score1,size(X1,1),size(X2,2));
+        scoreGrid2 = reshape(score2,size(X1,1),size(X2,2));
+        scoreGrid3 = reshape(score3,size(X1,1),size(X2,2));
+        scoreGrid4 = reshape(score4,size(X1,1),size(X2,2));
+
+        svInd1 = config.SVMModel1.IsSupportVector;
+        svInd2 = config.SVMModel2.IsSupportVector;
+        svInd3 = config.SVMModel3.IsSupportVector;
+        svInd4 = config.SVMModel4.IsSupportVector;
+
+        subplot(2,2,1)
+        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        hold on
+        plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
+        contour(X1,X2,scoreGrid1)
+        colorbar;
+        xlabel('vehicle location')
+        ylabel('vehicle speed')
+        legend('Observation','Support Vector')
+        hold off
+
+        subplot(2,2,2)
+        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        hold on
+        plot(p0.innov(1,svInd2),p0.innov(2,svInd2),'ro','MarkerSize',10)
+        contour(X1,X2,scoreGrid2)
+        colorbar;
+        xlabel('vehicle location')
+        ylabel('vehicle speed')
+        legend('Observation','Support Vector')
+        hold off
+
+        subplot(2,2,3)
+        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        hold on
+        plot(p0.innov(1,svInd3),p0.innov(2,svInd3),'ro','MarkerSize',10)
+        contour(X1,X2,scoreGrid3)
+        colorbar;
+        xlabel('vehicle location')
+        ylabel('vehicle speed')
+        legend('Observation','Support Vector')
+        hold off
+
+        subplot(2,2,4)
+        plot(p0.innov(1,:),p0.innov(2,:),'k.')
+        hold on
+        plot(p0.innov(1,svInd4),p0.innov(2,svInd4),'ro','MarkerSize',10)
+        contour(X1,X2,scoreGrid4)
+        colorbar;
+        xlabel('vehicle location')
+        ylabel('vehicle speed')
+        legend('Observation','Support Vector')
+        hold off
+    end
+
+
+
 end

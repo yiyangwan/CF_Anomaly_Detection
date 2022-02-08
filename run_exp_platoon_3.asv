@@ -25,7 +25,7 @@ if(config.ukf)                      % UKF parameters
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [0.3; 1.5; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.45; 1.5; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
@@ -89,7 +89,7 @@ if x_l_test(1) < 20
     x_l_test = x_l_test + 20 - x_l_test(1);
 end
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
-% platooning model
+% car-following model
 
 tau     = config.tau;       % human/sensor reaction time delay with unit "s"
 delta_t = config.delta_t;   % sampling time interval with unit "s"
@@ -346,45 +346,42 @@ if(config.plot)
         subplot(2,2,1)
         plot(p0.innov(1,:),p0.innov(2,:),'k.')
         hold on
-        plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
+        plot(X(svInd,1),X(svInd,2),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid1)
         colorbar;
         xlabel('vehicle location')
         ylabel('vehicle speed')
-        legend('Observation','Support Vector')
+        legend('Observation')
         hold off
 
         subplot(2,2,2)
         plot(p0.innov(1,:),p0.innov(2,:),'k.')
         hold on
-        plot(p0.innov(1,svInd2),p0.innov(2,svInd2),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid2)
         colorbar;
         xlabel('vehicle location')
         ylabel('vehicle speed')
-        legend('Observation','Support Vector')
+        legend('Observation')
         hold off
 
         subplot(2,2,3)
         plot(p0.innov(1,:),p0.innov(2,:),'k.')
         hold on
-        plot(p0.innov(1,svInd3),p0.innov(2,svInd3),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid3)
         colorbar;
         xlabel('vehicle location')
         ylabel('vehicle speed')
-        legend('Observation','Support Vector')
+        legend('Observation')
         hold off
 
         subplot(2,2,4)
         plot(p0.innov(1,:),p0.innov(2,:),'k.')
         hold on
-        plot(p0.innov(1,svInd4),p0.innov(2,svInd4),'ro','MarkerSize',10)
         contour(X1,X2,scoreGrid4)
         colorbar;
         xlabel('vehicle location')
         ylabel('vehicle speed')
-        legend('Observation','Support Vector')
+        legend('Observation')
         hold off
     end
 

@@ -1,14 +1,7 @@
-
 clear
 
 filePath = 'dataset\'; % dataset location
-load(strcat(filePath,'testdata.mat')) % info of the leading vehicle = s for testing n_sample * m
-load(strcat(filePath,'rawdata.mat')) % info of the leading vechicle = s_train for training n_sample * m
-% load(strcat(filePath,'following_state.mat')) % info of the following vehicle = s_f
-raw_data = s_train;
-s_l_train = s_train;
-% s = s_train;
-s_l_test = s;
+
 % Config data structure====================================================
 config.OCSVM        = true;        % if true, then use OCSVM instead of Chi-square detector
 config.adptQ        = false;        % if true, then adaptively estimate process noise covariance matrix Q
@@ -25,17 +18,17 @@ if(config.ukf)                      % UKF parameters
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [0.3; 1.5; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.29; 1; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
     config.Q                = diag([0.5,0.3,1e2]);  %diag([0.5,0.3]);% process noise covariance
     config.H                = [1,0,1;0,1,0];    % observation matrix
 else
-    config.Q                = diag([0.6,0.3]);  % process noise covariance
+    config.Q                = diag([0.5,0.3]);  % process noise covariance
     config.H                = [1,0;0,1];        % observation matrix
 end
-config.r                = 0.09;                  % Chi-square detector parameter
+config.r                = 0.8;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
 config.tau              = 0.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
@@ -78,41 +71,38 @@ AnomalyConfig.BiasVar       = diag(sqrt([1, 1]));
 AnomalyConfig.DriftMax      = [1, 1];
 AnomalyConfig.seed          = 1; % random seed controler
 %% Generate baseline data
-[x_l_train,v_l_train] = data_process(raw_data);   % get leading vehicle location x_l, speed v_l and acceleration a_l for training
-[x_l_test,v_l_test] = data_process(s_l_test);          % get leading vehicle location x_l, speed v_l and acceleration a_l for testing
-
-if x_l_train(1) < 20
-    x_l_train = x_l_train + 20 - x_l_train(1);
-end
-
-if x_l_test(1) < 20
-    x_l_test = x_l_test + 20 - x_l_test(1);
-end
+[s, s_train] = platoon_model_3_v2(config,idm_para);
+raw_data = s_train;
+[x_l,v_l]           = data_process(raw_data);   % get leading vehicle location x_l, speed v_l and acceleration a_l for training
+[x_l_test,v_l_test] = data_process(s);          % get leading vehicle location x_l, speed v_l and acceleration a_l for testing
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
-% platooning model
+% car-following model
+
+x0 = 5;    % initial location of following vehicle
+v0 = 1;     % initial speed of following vehicle
 
 tau     = config.tau;       % human/sensor reaction time delay with unit "s"
 delta_t = config.delta_t;   % sampling time interval with unit "s"
 
 t  = floor(tau/delta_t);    % time delay in discrete state-transition model
 
-[~, s_l_train, s_f_train] = platoon_model_3(x_l_train,v_l_train,delta_t,t,tau,idm_para);
+s_f_train   = cf_model(x_l,v_l,x0,v0,delta_t,t,tau,idm_para);
 
-[s_f_1_test, s_l_test, s_f_test] = platoon_model_3(x_l_test,v_l_test,delta_t,t,tau,idm_para);
+s_f         = cf_model(x_l_test,v_l_test,x0,v0,delta_t,t,tau,idm_para);
 
-save(strcat(filePath, 'following_state_test_baseline.mat'),'s_f_test')         % testing data
-writematrix(s_f_test, strcat(filePath,'following_state_test_baseline.csv'))
+save(strcat(filePath, 'following_state_test_baseline.mat'),'s_f')         % testing data
+writematrix(s_f, strcat(filePath,'following_state_test_baseline.csv'))
 save(strcat(filePath, 'following_state_train_baseline.mat'), 's_f_train')
 writematrix(s_f_train, strcat(filePath,'following_state_train_baseline.csv'))
 % training data
 %% Run experiments
-s_l_test   = s_l_test(1:end,:)';
-s_f_test = s_f_test(1:end,:)'; % baseline of testing data
+s   = s(1:end,:)';
+s_f = s_f(1:end,:)'; % baseline of testing data
 
-s_l_train     = s_l_train(1:end,:)';
+s_train     = s_train(1:end,:)';
 s_f_train   = s_f_train(1:end,:)';
 % Generate anomalous data
-[s_la, s_fa, AnomalyConfig] = generateAnomaly(s_l_test, s_f_test, AnomalyConfig);
+[s_la, s_fa, AnomalyConfig] = generateAnomaly(s, s_f, AnomalyConfig);
 AnomalyIdx = AnomalyConfig.index; % ground truth
 
 s_test = s_la; s_f_test = s_fa; % test dataset
@@ -124,35 +114,33 @@ writematrix(AnomalyIdx', strcat(filePath,'anomaly_index.csv'))
 if(config.OCSVM)
     fprintf('Entering training phase...\n');
     config.OCSVM = false;
-    [~,~,p0] = CfFilter(s_l_train, s_f_train, config, idm_para, s_f_train);
+    [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train);
     config.OCSVM = true;
 elseif(config.plot)
     fprintf('Entering training phase...\n');
-    [~,~,p0] = CfFilter(s_l_train, s_f_train, config, idm_para, s_f_train);
+    [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train);
 end
 
 % Train several OCSVM models with different sensitivity levels
 if(config.OCSVM)
     [SVMModel1,SVMModel2,SVMModel3,SVMModel4] = trainmodel(p0.innov,config.OCSVM_threshold);
+
     config.SVMModel1 = SVMModel1;
     config.SVMModel2 = SVMModel2;
     config.SVMModel3 = SVMModel3;
     config.SVMModel4 = SVMModel4;
 
-
     % Test OCSVM
     fprintf('Entering testing phase...\n');
-    [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f_test);
+    [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
     err             = logical(err');
-    s_l_test               = s_test';
-    s_f_test             = s_f_test';
+    s               = s_test';
+    s_f             = s_f_test';
     % Test chi^2 detector
 else
     fprintf('Entering testing phase...\n');
-    [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f_test);
+    [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
     err             = logical(err');
-    s_l_test               = s_test';
-    s_f_test             = s_f_test';
 end
 
 %% Generate summary
@@ -188,8 +176,8 @@ disp(Summary.results)
 %% Plotting
 if(config.plot)
     close all;
-    s_f_test = s_f_test';
-    s_cf = s_f_test;
+
+    s_cf = s_f;
 
     if(config.bias_correct)
         shat0 = shat;
@@ -226,8 +214,8 @@ if(config.plot)
 
     xx = 1:size(AnomalyConfig.index, 2);
 
-    x_l_test = s_la(1,:);
-    v_l_test = s_la(2,:);
+    x_l = s_la(1,:);
+    v_l = s_la(2,:);
 
     x_f1 = s_fa(1,:);
     v_f1 = s_fa(2,:);
@@ -235,21 +223,21 @@ if(config.plot)
     figure(2)
 
     subplot(411),
-    plot(v_l_test);hold on; plot(v_f1);legend('leading-raw','following-raw'); ylim([0,40]);
+    plot(v_l);hold on; plot(v_f1);legend('leading-raw','following-raw'); ylim([0,40]);
     subplot(412),
-    plot(x_l_test);hold on; plot(x_f1);legend('leading-raw','following-raw');
+    plot(x_l);hold on; plot(x_f1);legend('leading-raw','following-raw');
 
     x_f2 = shat(1,:);
     v_f2 = shat(2,:);
 
     subplot(413),
-    plot(v_l_test);hold on; plot(v_f2);
+    plot(v_l);hold on; plot(v_f2);
     % plot(xx(err),v_f2(err),'b*');
     plot(xx(AnomalyConfig.index(2,:)),v_f2(AnomalyConfig.index(2,:)),'d');
     legend('leading-raw','following-filtered','Anomaly'); ylim([0,40]);
 
     subplot(414),
-    plot(x_l_test);hold on; plot(x_f2);
+    plot(x_l);hold on; plot(x_f2);
     plot(xx(AnomalyConfig.index(1,:)),x_f2(AnomalyConfig.index(1,:)),'d');
     legend('leading-raw','following-filtered','Anomaly');
 
@@ -302,21 +290,13 @@ if(config.plot)
 
     figure(5)
     subplot(211),
-    plot(v_l_test,'LineWidth',3);
-    hold on;
-    plot(s_f_1_test(:, 2),'LineWidth',3)
-    plot(v_f1,'LineWidth',3,'LineStyle','-.');
-    legend('leading 1-raw', 'leading 2-raw','following-raw','Location','northwest','FontSize',14); ylim([0,40]);
+    plot(v_l,'LineWidth',3);hold on; plot(v_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14); ylim([0,40]);
 
     xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Speed (m/s)','FontSize',16)
     grid on
 
     subplot(212),
-    plot(x_l_test,'LineWidth',3);
-    hold on;
-    plot(s_f_1_test(:, 1),'LineWidth',3)
-    plot(x_f1,'LineWidth',3,'LineStyle','-.');
-    legend('leading 1-raw', 'leading 2-raw', 'following-raw','Location','northwest','FontSize',14);
+    plot(x_l,'LineWidth',3);hold on; plot(x_f1,'LineWidth',3,'LineStyle','-.');legend('leading-raw','following-raw','Location','northwest','FontSize',14);
 
     xlabel('Time epoch (\times 100ms)','FontSize',16), ylabel('Distance (m)','FontSize',16)
     grid on
@@ -332,12 +312,12 @@ if(config.plot)
         [~,score2] = predict(config.SVMModel2,[X1(:),X2(:)]);
         [~,score3] = predict(config.SVMModel3,[X1(:),X2(:)]);
         [~,score4] = predict(config.SVMModel4,[X1(:),X2(:)]);
-        
+
         scoreGrid1 = reshape(score1,size(X1,1),size(X2,2));
         scoreGrid2 = reshape(score2,size(X1,1),size(X2,2));
         scoreGrid3 = reshape(score3,size(X1,1),size(X2,2));
         scoreGrid4 = reshape(score4,size(X1,1),size(X2,2));
-        
+
         svInd1 = config.SVMModel1.IsSupportVector;
         svInd2 = config.SVMModel2.IsSupportVector;
         svInd3 = config.SVMModel3.IsSupportVector;
@@ -387,5 +367,7 @@ if(config.plot)
         legend('Observation','Support Vector')
         hold off
     end
+
+
 
 end
