@@ -1,0 +1,24 @@
+function auc = PRC(score, anomaly_idx)
+
+min_score = min(score);
+max_score = max(score);
+
+N = 1000;
+
+sen_ppv = zeros(N, 2);
+i = 1;
+for r = linspace(floor(min_score) + 1, floor(max_score) + 1, N)
+    y_tilde = score < r;
+    TP     = nnz(y_tilde(anomaly_idx==1));  % true positive
+    FP     = nnz(y_tilde(anomaly_idx==0));  % false positive
+    TN     = nnz(~y_tilde(anomaly_idx==0)); % true negative
+    FN     = nnz(~y_tilde(anomaly_idx==1)); % false negative
+    sen_ppv(i, 1) = TP / (TP + FN);
+    sen_ppv(i, 2) = TP / (TP + FP);
+    i = i + 1;
+end
+
+plot(sen_ppv(:, 1),flip(sen_ppv(:, 2)))
+auc = trapz(sen_ppv(:, 1),flip(sen_ppv(:, 2)));
+
+end

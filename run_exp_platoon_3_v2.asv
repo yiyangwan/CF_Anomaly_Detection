@@ -18,7 +18,7 @@ if(config.ukf)                      % UKF parameters
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [0.5; 1; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.29; 1; 3];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
@@ -146,10 +146,10 @@ end
 %% Generate summary
 
 anomaly_idx = AnomalyConfig.index(1,:) | AnomalyConfig.index(2,:);
-if config.OCSVM
-    score = max(p.score) - p.score;
-    [~,~,~,~,auc_prc,auc_roc] = prec_rec(score, anomaly_idx);
-end
+
+s
+auc = PRC(score, anomaly_idx);
+
 TP     = nnz(err(anomaly_idx==1));  % true positive
 FP     = nnz(err(anomaly_idx==0));  % false positive
 TN     = nnz(~err(anomaly_idx==0)); % true negative
@@ -162,16 +162,9 @@ sen  = TP / (TP + FN);
 ppv  = TP/(TP+FP);
 fpRate = 1-spec;
 
-if config.OCSVM
-    metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
-        ;'Precision';'FP rate'; 'AUC PR'; 'AUC ROC'};
-    metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate;auc_prc;auc_roc];
-
-else
-    metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
-        ;'Precision';'FP rate'};
-    metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate];
-end
+metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
+    ;'Precision';'FP rate'; 'AUC'};
+metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate;auc];
 
 Summary.configuration       = config;
 Summary.car_following_para  = idm_para;
