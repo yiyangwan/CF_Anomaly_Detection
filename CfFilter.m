@@ -1,4 +1,4 @@
-function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth)
+function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth, varargin)
 % The function CfFilter will filter signal s_f given the input
 % signal s_l. Also wil do the detection. Anomaly can come from both s_l and s_f.
 %
@@ -13,6 +13,21 @@ function [shat,error_idx,p] = CfFilter(s_l, s_f ,config, idm_para, groundtruth)
 %         error: index of anomaly
 %         p: p.chi: chi-square statistics
 %            p.innov: normalized innovation sequence
+
+optargin = size(varargin, 2);
+% stdargin = nargin - optargin;
+printStatus = true;
+i = 1;
+while (i <= optargin)
+    if (strcmp(varargin{i}, 'printStatus'))
+        if (i >= optargin)
+            error('argument required for %s', varargin{i});
+        else
+            printStatus = varargin{i+1};
+            i = i + 2;
+        end
+    end
+end
 
 n_sample    = max(size(s_f));       % number of samples
 m           = size(config.H, 2);      % dimension of state
@@ -31,7 +46,7 @@ t  = floor(tau/delta_t);    % time delay in discrete state-transition model
 if(~config.bias_correct)
     s0      = s_f(:,1);         % initial state prediction for EKF
 else
-    s0      = [squeeze(s_f(:,1)); 0];
+    s0      = [squeeze(s_f(:,1)); (-0.3) * tau * delta_t];
 end
 
 P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
@@ -84,7 +99,7 @@ h       = @(s) H*s; % function handle for measurement model
 del_h   = @(s) H;   % function handle for the Jacobian of motion model
 
 for i = t+1:n_sample
-    if(rem(i,config.print) == 0)
+    if(printStatus && rem(i,config.print) == 0)
         fprintf('processing %d th samples...\n',i);
     end
     

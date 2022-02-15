@@ -11,26 +11,26 @@ config.detection    = true;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter
-config.bias_correct = false;        % true if enable bias correction in EKF
+config.bias_correct = true;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
     config.ki       = 0;
     config.beta     = 2;
 end
-config.OCSVM_threshold  = [0.5; 1; 3];        % OCSVM model threshold for training
+config.OCSVM_threshold  = [0.1;];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
-    config.Q                = diag([0.5,0.3,1e2]);  %diag([0.5,0.3]);% process noise covariance
+    config.Q                = diag([0.5,0.3,1e-2]);  %diag([0.5,0.3]);% process noise covariance
     config.H                = [1,0,1;0,1,0];    % observation matrix
 else
     config.Q                = diag([0.5,0.3]);  % process noise covariance
     config.H                = [1,0;0,1];        % observation matrix
 end
-config.r                = 0.8;                  % Chi-square detector parameter
+config.r                = 0.3;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
-config.tau              = 0.0;                  % time delay
+config.tau              = 1.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
@@ -46,10 +46,10 @@ idm_para.sigma = 4;     % acceleration exponent
 idm_para.s0 = 2;        % minimum distance (m)
 idm_para.T = 1.0;       % safe time headway (s)
 idm_para.v0 = 24;       % desired velocity (m/s)
-idm_para.a_max = -0.2;   % max acceleration of random term
+idm_para.a_max = 0.2;   % max acceleration of random term
 idm_para.a_min = -0.4;  % max deceleration of random term
 idm_para.Length = 0;    % vehicle length (m)
-idm_para.tau_var = 0;    % variance of random time delay
+idm_para.tau_var = 0.0;    % variance of random time delay
 %==========================================================================
 %   AnomalyConfig:
 %       .index: index of anomaly
@@ -114,8 +114,16 @@ writematrix(AnomalyIdx', strcat(filePath,'anomaly_index.csv'))
 if(config.OCSVM)
     fprintf('Entering training phase...\n');
     config.OCSVM = false;
+    triger = 0;
+    if config.detection
+        config.detection = false;
+        triger = 1;
+    end
     [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train);
     config.OCSVM = true;
+    if triger
+        config.detection = true;
+    end
 elseif(config.plot)
     fprintf('Entering training phase...\n');
     [~,~,p0] = CfFilter(s_train, s_f_train, config, idm_para, s_f_train);
@@ -123,21 +131,25 @@ end
 
 % Train several OCSVM models with different sensitivity levels
 if(config.OCSVM)
-    [SVMModel1,SVMModel2,SVMModel3,SVMModel4] = trainmodel(p0.innov,config.OCSVM_threshold);
+    if length(config.OCSVM_threshold)==3
+        [SVMModel1,SVMModel2,SVMModel3,SVMModel4] = trainmodel(p0.innov,config.OCSVM_threshold);
 
-    config.SVMModel1 = SVMModel1;
-    config.SVMModel2 = SVMModel2;
-    config.SVMModel3 = SVMModel3;
-    config.SVMModel4 = SVMModel4;
-
+        config.SVMModel1 = SVMModel1;
+        config.SVMModel2 = SVMModel2;
+        config.SVMModel3 = SVMModel3;
+        config.SVMModel4 = SVMModel4;
+    elseif length(config.OCSVM_threshold)==1
+        config.SVMModel1 = trainmodel_single(p0.innov,config.OCSVM_threshold);
+    end
     % Test OCSVM
     fprintf('Entering testing phase...\n');
     [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
     err             = logical(err');
     s               = s_test';
     s_f             = s_f_test';
-    % Test chi^2 detector
+    
 else
+    % Test chi^2 detector
     fprintf('Entering testing phase...\n');
     [shat,err,p]    = CfFilter(s_test, s_f_test, config, idm_para, s_f);
     err             = logical(err');
@@ -146,43 +158,40 @@ end
 %% Generate summary
 
 anomaly_idx = AnomalyConfig.index(1,:) | AnomalyConfig.index(2,:);
-if config.OCSVM
-    score = max(p.score) - p.score;
-    [~,~,~,~,auc_prc,auc_roc] = prec_rec(score, anomaly_idx);
-end
-TP     = nnz(err(anomaly_idx==1));  % true positive
-FP     = nnz(err(anomaly_idx==0));  % false positive
-TN     = nnz(~err(anomaly_idx==0)); % true negative
-FN     = nnz(~err(anomaly_idx==1)); % false negative
+if config.detection
+    if config.OCSVM
+        score = max(p.score) - p.score;
+        [~,~,~,~,auc_prc,auc_roc] = prec_rec(score, anomaly_idx);
+    else
+        [auc_prc, auc_roc] = chi_2_auc(p, s_test,s_f_test,config,idm_para,s_f,anomaly_idx);
+    end
 
-f1   = 2*TP/(2*TP+FP+FN);
-acc  = (TP+TN)/(TN+FN+FP+TP);
-spec = TN/(TN+FP);
-sen  = TP / (TP + FN);
-ppv  = TP/(TP+FP);
-fpRate = 1-spec;
+    TP     = nnz(err(anomaly_idx==1));  % true positive
+    FP     = nnz(err(anomaly_idx==0));  % false positive
+    TN     = nnz(~err(anomaly_idx==0)); % true negative
+    FN     = nnz(~err(anomaly_idx==1)); % false negative
 
-if config.OCSVM
+    f1   = 2*TP/(2*TP+FP+FN);
+    acc  = (TP+TN)/(TN+FN+FP+TP);
+    spec = TN/(TN+FP);
+    sen  = TP / (TP + FN);
+    ppv  = TP/(TP+FP);
+    fpRate = 1-spec;
+
     metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
         ;'Precision';'FP rate'; 'AUC PR'; 'AUC ROC'};
     metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate;auc_prc;auc_roc];
 
-else
-    metric_name     = {'TP';'FP';'TN';'FN';'F1';'Accuracy';'Specificity';'Sensitivity'...
-        ;'Precision';'FP rate'};
-    metric_values   = [TP;FP;TN;FN;f1;acc;spec;sen;ppv;fpRate];
+    Summary.configuration       = config;
+    Summary.car_following_para  = idm_para;
+    Summary.anomaly             = AnomalyConfig;
+    Summary.results             = table(metric_name,metric_values);
+
+    filename = 'Summary.mat';
+    save(strcat(filePath,filename),'Summary')
+
+    disp(Summary.results)
 end
-
-Summary.configuration       = config;
-Summary.car_following_para  = idm_para;
-Summary.anomaly             = AnomalyConfig;
-Summary.results             = table(metric_name,metric_values);
-
-filename = 'Summary.mat';
-save(strcat(filePath,filename),'Summary')
-
-disp(Summary.results)
-
 %% Plotting
 if(config.plot)
     close all;
@@ -282,6 +291,7 @@ if(config.plot)
     plot(p.rmse), legend('RMSE sequence');
 
     figure(4)
+    subplot(121)
     R = sqrt(config.r);
     theta=0:0.01:2*pi;
     x=R*sin(theta);
@@ -292,6 +302,23 @@ if(config.plot)
 
     scatter(p0.innov(1,:),p0.innov(2,:)),hold on
     scatter(mean_location,mean_speed,'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
+    xlim([-2.5 2.5]), ylim([-2.5 2.5])
+    xlabel('Innovation of location','FontSize',16), ylabel('Innovation of speed','FontSize',16)
+    grid on
+    title('Scatter plot of innovation sequence','FontSize',16)
+    legend('\chi^2 detector threshold','innovation','innovation centroid','FontSize',14)
+    
+    subplot(122)
+    R = sqrt(config.r);
+    theta=0:0.01:2*pi;
+    x=R*sin(theta);
+    y=R*cos(theta);
+    plot(x,y,'LineWidth',2)
+    axis equal
+    hold on
+
+    scatter(p.innov(1,:),p.innov(2,:)),hold on
+    scatter(mean(p.innov(1,:)),mean(p.innov(2,:)),'filled','MarkerEdgeColor','k','MarkerFaceColor','k')
     xlim([-2.5 2.5]), ylim([-2.5 2.5])
     xlabel('Innovation of location','FontSize',16), ylabel('Innovation of speed','FontSize',16)
     grid on
@@ -314,74 +341,119 @@ if(config.plot)
     v_f2 = shat(2,:);
 
     if config.OCSVM
-        figure(6)
-        h = 0.02; % Mesh grid step size
-        [X1,X2] = meshgrid(min(p0.innov(1,:)):h:max(p0.innov(1,:)),...
-            min(p0.innov(2,:)):h:max(p0.innov(2,:)));
-        [~,score1] = predict(config.SVMModel1,[X1(:),X2(:)]);
-        [~,score2] = predict(config.SVMModel2,[X1(:),X2(:)]);
-        [~,score3] = predict(config.SVMModel3,[X1(:),X2(:)]);
-        [~,score4] = predict(config.SVMModel4,[X1(:),X2(:)]);
+        if length(config.OCSVM_threshold)==3
+            figure(6)
+            xxlim1 = -0.5; xxlim2 = 0.5;
+            yylim1 = -0.5; yylim2 = 0.5;
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
+            h = 0.02; % Mesh grid step size
+            [X1,X2] = meshgrid(min(p0.innov(1,:)):h:max(p0.innov(1,:)),...
+                min(p0.innov(2,:)):h:max(p0.innov(2,:)));
+            [~,score1] = predict(config.SVMModel1,[X1(:),X2(:)]);
+            [~,score2] = predict(config.SVMModel2,[X1(:),X2(:)]);
+            [~,score3] = predict(config.SVMModel3,[X1(:),X2(:)]);
+            [~,score4] = predict(config.SVMModel4,[X1(:),X2(:)]);
 
-        scoreGrid1 = reshape(score1,size(X1,1),size(X2,2));
-        scoreGrid2 = reshape(score2,size(X1,1),size(X2,2));
-        scoreGrid3 = reshape(score3,size(X1,1),size(X2,2));
-        scoreGrid4 = reshape(score4,size(X1,1),size(X2,2));
+            scoreGrid1 = reshape(score1,size(X1,1),size(X2,2));
+            scoreGrid2 = reshape(score2,size(X1,1),size(X2,2));
+            scoreGrid3 = reshape(score3,size(X1,1),size(X2,2));
+            scoreGrid4 = reshape(score4,size(X1,1),size(X2,2));
 
-        svInd1 = config.SVMModel1.IsSupportVector;
-        svInd2 = config.SVMModel2.IsSupportVector;
-        svInd3 = config.SVMModel3.IsSupportVector;
-        svInd4 = config.SVMModel4.IsSupportVector;
+            svInd1 = config.SVMModel1.IsSupportVector;
+            svInd2 = config.SVMModel2.IsSupportVector;
+            svInd3 = config.SVMModel3.IsSupportVector;
+            svInd4 = config.SVMModel4.IsSupportVector;
 
-        subplot(2,2,1)
-        plot(p.innov(1,:),p.innov(2,:),'k.')
-        hold on
-        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
-        plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
-        contour(X1,X2,scoreGrid1)
-        colorbar;
-        xlabel('vehicle location')
-        ylabel('vehicle speed')
-        legend('Observation','Support Vector')
-        hold off
+            subplot(2,2,1)
+            plot(p.innov(1,:),p.innov(2,:),'k.')
+            hold on
+            plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
+            %         plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
+            contour(X1,X2,scoreGrid1)
+            colorbar;
+            xlabel('vehicle location innovation')
+            ylabel('vehicle speed innovation')
+            legend('Observation','Anomaly')
+            hold off
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
 
-        subplot(2,2,2)
-        plot(p.innov(1,:),p.innov(2,:),'k.')
-        hold on
-        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
-        plot(p0.innov(1,svInd2),p0.innov(2,svInd2),'ro','MarkerSize',10)
-        contour(X1,X2,scoreGrid2)
-        colorbar;
-        xlabel('vehicle location')
-        ylabel('vehicle speed')
-        legend('Observation','Support Vector')
-        hold off
+            subplot(2,2,2)
+            plot(p.innov(1,:),p.innov(2,:),'k.')
+            hold on
+            plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
+            %         plot(p0.innov(1,svInd2),p0.innov(2,svInd2),'ro','MarkerSize',10)
+            contour(X1,X2,scoreGrid2)
+            colorbar;
+            xlabel('vehicle location innovation')
+            ylabel('vehicle speed innovation')
+            legend('Observation','Anomaly')
+            hold off
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
 
-        subplot(2,2,3)
-        plot(p.innov(1,:),p.innov(2,:),'k.')
-        hold on
-        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
-        plot(p0.innov(1,svInd3),p0.innov(2,svInd3),'ro','MarkerSize',10)
-        contour(X1,X2,scoreGrid3)
-        colorbar;
-        xlabel('vehicle location')
-        ylabel('vehicle speed')
-        legend('Observation','Support Vector')
-        hold off
+            subplot(2,2,3)
+            plot(p.innov(1,:),p.innov(2,:),'k.')
+            hold on
+            plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
+            %         plot(p0.innov(1,svInd3),p0.innov(2,svInd3),'ro','MarkerSize',10)
+            contour(X1,X2,scoreGrid3)
+            colorbar;
+            xlabel('vehicle location innovation')
+            ylabel('vehicle speed innovation')
+            legend('Observation','Anomaly')
+            hold off
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
 
-        subplot(2,2,4)
-        plot(p.innov(1,:),p.innov(2,:),'k.')
-        hold on
-        plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
-        plot(p0.innov(1,svInd4),p0.innov(2,svInd4),'ro','MarkerSize',10)
-        contour(X1,X2,scoreGrid4)
-        colorbar;
-        xlabel('vehicle location')
-        ylabel('vehicle speed')
-        legend('Observation','Support Vector')
-        hold off
+            subplot(2,2,4)
+            plot(p.innov(1,:),p.innov(2,:),'k.')
+            hold on
+            plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
+            %         plot(p0.innov(1,svInd4),p0.innov(2,svInd4),'ro','MarkerSize',10)
+            contour(X1,X2,scoreGrid4)
+            colorbar;
+            xlabel('vehicle location innovation')
+            ylabel('vehicle speed innovation')
+            legend('Observation','Anomaly')
+            hold off
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
+        elseif length(config.OCSVM_threshold)==1
+            figure(6)
+            xxlim1 = -0.5; xxlim2 = 0.5;
+            yylim1 = -0.5; yylim2 = 0.5;
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
+            h = 0.02; % Mesh grid step size
+            [X1,X2] = meshgrid(min(p0.innov(1,:)):h:max(p0.innov(1,:)),...
+                min(p0.innov(2,:)):h:max(p0.innov(2,:)));
+            [~,score1] = predict(config.SVMModel1,[X1(:),X2(:)]);
+
+            scoreGrid1 = reshape(score1,size(X1,1),size(X2,2));
+
+            svInd1 = config.SVMModel1.IsSupportVector;
+            plot(p.innov(1,:),p.innov(2,:),'k.')
+            hold on
+            plot(p.innov(1, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)), p.innov(2, AnomalyConfig.index(1,:)|AnomalyConfig.index(2,:)),'bo','MarkerSize',10)
+            %         plot(p0.innov(1,svInd1),p0.innov(2,svInd1),'ro','MarkerSize',10)
+            contour(X1,X2,scoreGrid1)
+            colorbar;
+            xlabel('vehicle location')
+            ylabel('vehicle speed')
+            legend('Observation','Anomaly')
+            hold off
+            xlim([xxlim1,xxlim2])
+            ylim([yylim1,yylim2])
+        end
     end
-
-
+    figure(7)
+    subplot(211)
+    plot(p0.innov(1,:))
+    title('following vehicle location innovation')
+    subplot(212)
+    plot(p0.innov(2,:))
+    title('following vehicle speed innovation')
 
 end

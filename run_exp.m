@@ -9,7 +9,7 @@ raw_data = s_train;
 % s = s_train;
 
 % Config data structure====================================================
-config.OCSVM        = true;        % if true, then use OCSVM instead of Chi-square detector
+config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
 config.adptQ        = false;        % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
@@ -17,7 +17,7 @@ config.detection    = true;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter
-config.bias_correct = false;        % true if enable bias correction in EKF
+config.bias_correct = true;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
