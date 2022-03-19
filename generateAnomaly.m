@@ -5,7 +5,7 @@ function [s_la, s_fa, AnomalyConfig] = generateAnomaly(s_l, s_f, AnomalyConfig)
 %       x n_sample
 %   s_f: baseline of the state squence of following vehicle with dimension
 %       m x n_sample
-%   AnomalyConfig: 
+%   AnomalyConfig:
 %       .index: index of anomaly
 %       .percent: percent of anomaly in scale [0,1]
 %       .anomaly_type: list of anomaly types
@@ -34,24 +34,24 @@ for i = 1:n_sample
             anomaly_type_idx = randi(num_type); % uniform distribution
             type = anomaly_type{anomaly_type_idx};
             dur_length = randi(AnomalyConfig.dur_length); % uniform distribution
-        if (i+dur_length-1 <= n_sample)
-            AnomalyConfig.index(:,i:i+dur_length-1) = AnomalyConfig.index(:,i:i+dur_length-1)+msk;
-            
-            switch type
-                case 'Noise'
-                    s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + msk.*AnomalyConfig.NoiseVar * randn(m,dur_length);
-                case 'Bias'
-                    s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + msk.*AnomalyConfig.BiasVar * randn(m,1);
-                case 'Drift'
-                    s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + (2*randi(2,2,1)-3).*msk.*[linspace(0,rand*(AnomalyConfig.DriftMax(1)),dur_length);linspace(0,rand*(AnomalyConfig.DriftMax(2)),dur_length)];
+            if (i+dur_length-1 <= n_sample)
+                AnomalyConfig.index(:,i:i+dur_length-1) = AnomalyConfig.index(:,i:i+dur_length-1)+msk;
+
+                switch type
+                    case 'Noise'
+                        s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + msk.*AnomalyConfig.NoiseVar * randn(m,dur_length);
+                    case 'Bias'
+                        s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + msk.*AnomalyConfig.BiasVar * randn(m,1);
+                    case 'Drift'
+                        s_fa(:,i:i+dur_length-1) = s_fa(:,i:i+dur_length-1) + (2*randi(2,2,1)-3).*msk.*[linspace(0,rand*(AnomalyConfig.DriftMax(1)),dur_length);linspace(0,rand*(AnomalyConfig.DriftMax(2)),dur_length)];
+                end
             end
         end
-        end
-        
-    end
-        
 
-    
+    end
+
+
+
 end
 AnomalyConfig.index = logical(AnomalyConfig.index);
 end
