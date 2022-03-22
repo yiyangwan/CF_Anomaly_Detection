@@ -11,7 +11,7 @@ function [X, V, X_syn, V_syn] = platoon_model_v2(config, idm_para, ...
 % headway: initial headway
 % v_init: initial velocity
 
-N = PlatoonConfig.N_platoon;
+N_platoon = PlatoonConfig.N_platoon;
 alpha = PlatoonConfig.alpha;
 v_init = PlatoonConfig.v_init;
 headway = PlatoonConfig.headway;
@@ -25,9 +25,9 @@ tau = config.tau; % human/sensor reaction time delay with unit "s"
 delta_t = config.delta_t; % sampling time interval with unit "s"
 t  = ceil(tau/delta_t); % time delay in discrete state-transition model
 
-X = zeros(N, N_sample);
-X(:, 1) = (headway +  Length) * [N - 1: -1 : 0]';
-V = zeros(N, N_sample) + v_init;
+X = zeros(N_platoon, N_sample);
+X(:, 1) = (headway +  Length) * [N_platoon - 1: -1 : 0]';
+V = zeros(N_platoon, N_sample) + v_init;
 
 if t > 1
     for tt = 2 : t + 1
@@ -40,23 +40,27 @@ if PlatoonConfig.perturbation
     X(1, 1 + t) = X(1, 1 + t) - 0.5 * headway;
 end
 
-X_syn = zeros(N, N_sample);
-V_syn = zeros(N, N_sample);
+X_syn = zeros(N_platoon, N_sample);
+V_syn = zeros(N_platoon, N_sample);
 
 for j = t + 2 : N_sample
-    for i = 1 : N
+    for i = 1 : N_platoon
         tau1 = normrnd(tau,idm_para.tau_var);
         if i - 1 < N_coop
-            X_temp = [X(i - 1 : -1 : 1, j - t - 1); X(N: -1 : N - N_coop + i, j - t - 1) + (headway +  Length) + X(1, 1)];
-            V_temp = [V(i - 1 : -1 : 1, j - t - 1); V(N: -1 : N - N_coop + i, j - t - 1)];
-            x_l_syn = alpha * X_temp;
-            v_l_syn = alpha * V_temp;
+            X_temp = [X(i - 1 : -1 : 1, j - t - 1); X(N_platoon: -1 : N_platoon - N_coop + i, j - t - 1) + (headway +  Length) + X(1, 1)];
+            X_temp1 = [X(i, j - t - 1); X_temp(1:end-1)];
+            V_temp = [V(i - 1 : -1 : 1, j - t - 1); V(N_platoon: -1 : N_platoon - N_coop + i, j - t - 1)];
+            V_temp1 = [V(i, j - t - 1); V_temp(1:end-1)];
         else
-            x_l_syn = alpha * X(i - 1 : -1 : i - N_coop, j - t - 1);
-            v_l_syn = alpha * V(i - 1 : -1 : i - N_coop, j - t - 1);
+            X_temp = X(i - 1 : -1 : i - N_coop, j - t - 1);
+            X_temp1 = [X(i, j - t - 1); X_temp(1:end-1)];
+            V_temp = V(i - 1 : -1 : i - N_coop, j - t - 1);
+            V_temp1 = [V(i, j - t - 1); V_temp(1:end-1)];
         end
+        x_l_syn = round(alpha * (X_temp - X_temp1 - Length), 8);
+        v_l_syn = round(alpha * (-V_temp + V_temp1), 8);
 
-        s = idm(x_l_syn,v_l_syn,X(i, j - 1),V(i, j - 1),delta_t,t,tau1,idm_para);
+        s = cidm(x_l_syn,v_l_syn,X(i, j - 1),V(i, j - 1),delta_t,t,tau1,idm_para);
 
         X(i, j) = s(1); V(i, j) = s(2);
 

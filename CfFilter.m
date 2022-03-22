@@ -53,7 +53,7 @@ P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
 
 if(~config.ukf)
     x_hat   = s0;
-    
+
 else
     c       = sqrt(config.alpha^2*(m+config.ki));
     x_hat.x = s0;
@@ -79,19 +79,19 @@ if(config.use_CF)
     if(~config.bias_correct)
         f       = @(tt,ss,uu,ZZ) CF_idm(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
         del_f   = @(ss,uu) CF_idm_der(ss,uu,idm_para);          % function handle for the Jacobian of motion model
-        
+
         CF      = @(s,u) CF_idm2(s,u,idm_para);
     else
         f       = @(tt,ss,uu,ZZ) CF_idm_bias_corrt(tt,ss,uu,ZZ,idm_para);  % function handle for motion model
         del_f   = @(ss,uu) CF_idm_der_bias_corrt(ss,uu,idm_para);          % function handle for the Jacobian of motion model
-        
+
         CF      = @(s,u) CF_idm2_bias_corrt(s,u,idm_para);
     end
-    
+
 else
     f       = @(tt,ss,uu,ZZ) non_CF(tt,ss,ZZ);  % function handle for motion model without considering CF model
     del_f   = @(ss,uu) non_CF_der(ss);          % function handle for the Jacobian of motion model without considering CF model
-    
+
     CF      = @(s,u) non_CF2(s);
 end
 
@@ -102,7 +102,7 @@ for i = t+1:n_sample
     if(printStatus && rem(i,config.print) == 0)
         fprintf('processing %d th samples...\n',i);
     end
-    
+
     if(~config.ukf)
         [x_next,P_next,x_dgr,P_dgr,p1,K,error1] = ekf(f,h,s_f(:,i),del_f,del_h,x_hat,P_hat,s_l(:,i-t),groundtruth(:,i),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
     elseif(config.ukf)
@@ -110,10 +110,10 @@ for i = t+1:n_sample
     end
     vlist(:,:,1:N-1)    = vlist(:,:,2:end);         %shift left
     vlist(:,:,N)        = p1.y_tilde*p1.y_tilde';
-    
+
     ulist(:,:,1:N-1)    = ulist(:,:,2:end);         %shift left
     ulist(:,:,N)        = p1.residual*p1.residual';
-    
+
     p.rmse(i) = p1.RMSE;
     % Adaptively estimate covariance matrices Q and R based on innovation
     % and residual sequences
@@ -121,37 +121,37 @@ for i = t+1:n_sample
         Ccum = Ccum + config.weight(j) * (K*squeeze(vlist(:,:,j))*K');
         Ucum = Ucum + config.weight(j) * ( squeeze(ulist(:,:,j)) + config.H * P_next * config.H' );
     end
-    
+
     if(config.adptQ)
         config.Q = Ccum; % compute adaptively Q based on innovation sequence
     end
     if(config.adptR)
         config.R = Ucum; % compute adaptively R based on residual sequence
     end
-    
+
     Ccum = diag(zeros(m,1));            % reset sum every loop
     Ucum = diag(zeros(m_measure,1));    % reset sum every loop
-    
+
     shat(:,i)       = x_dgr;
     error_idx(i)    = error1;
     p.chi(i)        = p1.chi;
     p.innov(:,i)    = p1.innov;
-    
+
     if(config.OCSVM)
         p.score(i)  = p1.score;
     end
-    
+
     if(i>=N_ocsvm-1)
         psum = sum(p.innov(:,i-N_ocsvm+2:i),2);
     else
         psum = sum(p.innov(:,1:i),2);
     end
-    
+
     x_hat = x_next;
     P_hat = P_next;
-    
+
     % Ignore warining
-    
+
     [~, MSGID] = lastwarn();
     if(~isempty(MSGID))
         warning('off', MSGID);

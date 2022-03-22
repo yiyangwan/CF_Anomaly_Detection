@@ -1,4 +1,5 @@
-% Version 2: ring configuration of platoon.
+% Version 3: Add fault detector.
+% Version 2: Ring configuration of platoon.
 
 clear
 
@@ -17,7 +18,7 @@ x_test = 10 * [0 : 0.1 : 1999 * 0.1];
 s.s = [x_test; v_test]';
 
 % Config data structure====================================================
-config.OCSVM        = true;        % if true, then use OCSVM instead of Chi-square detector
+config.OCSVM        = false;        % if true, then use OCSVM instead of Chi-square detector
 config.adptQ        = false;        % if true, then adaptively estimate process noise covariance matrix Q
 config.adptR        = false;        % if true, then adaptively estimate measurement noise covariance matrix R
 config.use_CF       = true;         % true if using CF model
@@ -25,7 +26,7 @@ config.detection    = true;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter
-config.bias_correct = true;        % true if enable bias correction in EKF
+config.bias_correct = false;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
@@ -36,19 +37,19 @@ config.OCSVM_threshold  = [0.1;];        % OCSVM model threshold for training
 config.R                = diag([0.01,0.01]);    % observation noise covariance
 
 if(config.bias_correct)
-    config.Q                = diag([0.5,0.3,1e-2]);  %diag([0.5,0.3]);% process noise covariance
+    config.Q                = diag([0.5,0.5,1e-2]);  %diag([0.5,0.3]);% process noise covariance
     config.H                = [1,0,1;0,1,0];    % observation matrix
 else
-    config.Q                = diag([0.5,0.3]);  % process noise covariance
+    config.Q                = diag([0.5,0.5]);  % process noise covariance
     config.H                = [1,0;0,1];        % observation matrix
 end
-config.r                = 0.3;                  % Chi-square detector parameter
+config.r                = 0.03;                  % Chi-square detector parameter
 config.delta_t          = 0.1;                  % sensor sampling time interval in seconds
 config.tau              = 0.5;                  % time delay
 config.N_ocsvm          = 10;                   % Time window length for OCSVM
 config.N                = 2;                    % time window length for AdEKF
 
-config.plot             = true;                 % true if generate plots
+config.plot             = false;                 % true if generate plots
 
 weight_vector = [3,7];                          % fogeting factor for adaptive EKF
 config.weight = weight_vector./sum(weight_vector);
@@ -62,7 +63,7 @@ idm_para.T = 1.1;       % safe time headway (s)
 idm_para.v0 = 33.33;       % desired velocity (m/s)
 idm_para.a_max = -0.2;   % max acceleration of random term
 idm_para.a_min = -0.4;  % max deceleration of random term
-idm_para.Length = 0;    % vehicle length (m)
+idm_para.Length = 5;    % vehicle length (m)
 idm_para.tau_var = 0;    % variance of random time delay
 %==========================================================================
 %   AnomalyConfig:
@@ -90,21 +91,55 @@ AnomalyConfig.seed          = 1; % random seed controler
 PlatoonConfig.N_platoon = 10;
 % PlatoonConfig.alpha = [1];
 PlatoonConfig.alpha = [0.7, 0.2, 0.1];
-PlatoonConfig.v_init = 22.47;
 PlatoonConfig.headway = 30;
+PlatoonConfig.v_init = eq_h(idm_para, PlatoonConfig.headway);
 PlatoonConfig.perturbation = false;
 PlatoonConfig.attack_id = 3;
-
-N_train = 4000;
+PlatoonConfig.inject_anomaly = true;
+N_train = 2000;
 N_test = 2000;
 % platoon trajectory for training
-[X_train, V_train, X_syn_train, V_syn_train] = platoon_model_v2(config, idm_para, ...
-    PlatoonConfig, N_train);
+% Generate statistics for baseline data
+
+temp1 = PlatoonConfig.inject_anomaly;
+% PlatoonConfig.inject_anomaly = false;
+temp2 = config.detection;
+config.detection = false;
+if(config.OCSVM)
+    fprintf('Entering training phase...\n');
+    config.OCSVM = false;
+    [X_train, V_train, X_syn_train, V_syn_train, ~, ~,p0] ...
+        = platoon_KF_detect(config, idm_para, ...
+        PlatoonConfig, N_train, AnomalyConfig);
+    config.OCSVM = true; 
+
+else
+    [X_train, V_train, X_syn_train, V_syn_train, ~, ~,p0] ...
+        = platoon_KF_detect(config, idm_para, ...
+        PlatoonConfig, N_train, AnomalyConfig);
+end
+PlatoonConfig.inject_anomaly = temp1;
+config.detection = temp2;
 
 % platoon trajectory for testing
-PlatoonConfig.inject_anomaly = true;
-[X_test, V_test, X_syn_test, V_syn_test] = platoon_model_v3(config, idm_para, ...
-    PlatoonConfig, N_test);
+if(config.OCSVM)
+    if length(config.OCSVM_threshold)==3
+        [SVMModel1,SVMModel2,SVMModel3,SVMModel4] = trainmodel(p0.innov,config.OCSVM_threshold);
+
+        config.SVMModel1 = SVMModel1;
+        config.SVMModel2 = SVMModel2;
+        config.SVMModel3 = SVMModel3;
+        config.SVMModel4 = SVMModel4;
+    elseif length(config.OCSVM_threshold)==1
+        config.SVMModel1 = trainmodel_single(p0.innov,config.OCSVM_threshold);
+    end
+end
+
+fprintf('Entering testing phase...\n');
+
+[X_test, V_test, X_syn_test, V_syn_test, ~, ~, p1] =...
+    platoon_KF_detect(config, idm_para, ...
+    PlatoonConfig, N_test, AnomalyConfig);
 
 % headway of each following vehicle in platoon
 N_platoon = PlatoonConfig.N_platoon;
@@ -144,7 +179,7 @@ grid on
 
 subplot(212)
 plot(0:N_platoon-1, max_E_test, ":d", "LineWidth", 1)
-ylim([0, max(max_E_test)])
+ylim([0, max(max_E_train)])
 xlabel("Vehicle ID")
 ylabel("max|e_i(t)| (m/s)")
 title("Maximum spacing error in testing dataset")
@@ -152,10 +187,31 @@ grid on
 
 figure(2)
 subplot(211)
+plot(1:size(X_train, 2), X_train, "LineWidth",1)
+xlabel("Time epoch (0.1 sec)")
+ylabel("Location (m)")
+ylim([min(X_train, [], "all"), max(X_train, [], "all")])
+title("Location of vehicles in platoon of training dataset")
+grid on
+
+subplot(212)
+plot(1:size(V_train, 2), V_train, "LineWidth",1)
+xlabel("Time epoch (0.1 sec)")
+ylabel("Velocity (m/s)")
+ylim([min(V_train, [], "all"), max(V_train, [], "all")])
+title("Velocity of vehicles in platoon of training dataset")
+grid on
+
+legendStrings = "Vehicle " + string([0:N_platoon-1]);
+legend(legendStrings)
+
+figure(3)
+subplot(211)
 plot(1:size(X_test, 2), X_test, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Location (m)")
-ylim([min(X_test, [], "all"), max(X_test, [], "all")])
+% ylim([min(X_test, [], "all"), max(X_test, [], "all")])
+ylim([min(X_train, [], "all"), max(X_train, [], "all")])
 title("Location of vehicles in platoon of testing dataset")
 grid on
 
@@ -163,18 +219,32 @@ subplot(212)
 plot(1:size(V_test, 2), V_test, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Velocity (m/s)")
-ylim([min(V_test, [], "all"), max(V_test, [], "all")])
+% ylim([min(V_test, [], "all"), max(V_test, [], "all")])
+ylim([min(V_train, [], "all"), max(V_train, [], "all")])
 title("Velocity of vehicles in platoon of testing dataset")
 grid on
 
 legendStrings = "Vehicle " + string([0:N_platoon-1]);
 legend(legendStrings)
 
-figure(3)
+figure(4)
+plot(round(E_train', 8) - headway - idm_para.Length, "LineWidth", 1)
+xlabel("Time epoch (0.1 sec)")
+ylabel("Spacing error e_i(t) (m/s)")
+title("Spacing error over time of training dataset")
+legendStrings = "Vehicle " + string([0:N_platoon-1]);
+legend(legendStrings)
+ylim([min(round(E_train', 8) - headway - idm_para.Length, [], "all"),...
+    max(round(E_train', 8) - headway - idm_para.Length, [], "all")])
+grid on
+
+figure(5)
 plot(round(E_test', 8) - headway - idm_para.Length, "LineWidth", 1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Spacing error e_i(t) (m/s)")
 title("Spacing error over time of testing dataset")
 legendStrings = "Vehicle " + string([0:N_platoon-1]);
 legend(legendStrings)
+ylim([min(round(E_train', 8) - headway - idm_para.Length, [], "all"),...
+    max(round(E_train', 8) - headway - idm_para.Length, [], "all")])
 grid on

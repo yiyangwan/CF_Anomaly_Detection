@@ -62,7 +62,7 @@ idm_para.T = 1.1;       % safe time headway (s)
 idm_para.v0 = 33.33;       % desired velocity (m/s)
 idm_para.a_max = -0.2;   % max acceleration of random term
 idm_para.a_min = -0.4;  % max deceleration of random term
-idm_para.Length = 0;    % vehicle length (m)
+idm_para.Length = 5;    % vehicle length (m)
 idm_para.tau_var = 0;    % variance of random time delay
 %==========================================================================
 %   AnomalyConfig:
@@ -90,9 +90,9 @@ AnomalyConfig.seed          = 1; % random seed controler
 PlatoonConfig.N_platoon = 10;
 % PlatoonConfig.alpha = [1];
 PlatoonConfig.alpha = [0.7, 0.2, 0.1];
-PlatoonConfig.v_init = 22.47;
 PlatoonConfig.headway = 30;
-PlatoonConfig.perturbation = false;
+PlatoonConfig.v_init = eq_h(idm_para, PlatoonConfig.headway);
+PlatoonConfig.perturbation = true;
 PlatoonConfig.attack_id = 3;
 
 N_train = 4000;
@@ -103,7 +103,7 @@ N_test = 2000;
 
 % platoon trajectory for testing
 PlatoonConfig.inject_anomaly = true;
-[X_test, V_test, X_syn_test, V_syn_test] = platoon_model_v3(config, idm_para, ...
+[X_test, V_test, X_syn_test, V_syn_test] = platoon_model_v2(config, idm_para, ...
     PlatoonConfig, N_test);
 
 % headway of each following vehicle in platoon

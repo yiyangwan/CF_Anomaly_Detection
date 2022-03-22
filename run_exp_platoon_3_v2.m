@@ -11,7 +11,7 @@ config.detection    = true;        % true if start using fault detecter
 config.use_predict  = false;        % true if replacing estimate as predict when anomaly detected
 config.print        = 1000;         % interval of iterations for progress printing
 config.ukf          = false;        % true if using Unscented Kalman Filter
-config.bias_correct = true;        % true if enable bias correction in EKF
+config.bias_correct = false;        % true if enable bias correction in EKF
 
 if(config.ukf)                      % UKF parameters
     config.alpha    = 1e-3;
