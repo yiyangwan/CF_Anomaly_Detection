@@ -174,7 +174,7 @@ plot(0:N_platoon-1, max_E_train, ":d", "LineWidth", 1)
 ylim([0, max(max_E_train)])
 xlabel("Vehicle ID")
 ylabel("max |e_i(t)| (m/s)")
-title("Maximum spacing error in training dataset")
+title("Maximum spacing error w/o fault detector")
 grid on
 
 subplot(212)
@@ -182,67 +182,68 @@ plot(0:N_platoon-1, max_E_test, ":d", "LineWidth", 1)
 ylim([0, max(max_E_train)])
 xlabel("Vehicle ID")
 ylabel("max|e_i(t)| (m/s)")
-title("Maximum spacing error in testing dataset")
+title("Maximum spacing error w/ fault detector")
 grid on
 
 figure(2)
-subplot(211)
+subplot(221)
 plot(1:size(X_train, 2), X_train, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Location (m)")
 ylim([min(X_train, [], "all"), max(X_train, [], "all")])
-title("Location of vehicles in platoon of training dataset")
+title("Location of vehicles in platoon w/o fault detector")
 grid on
 
-subplot(212)
+subplot(223)
 plot(1:size(V_train, 2), V_train, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Velocity (m/s)")
 ylim([min(V_train, [], "all"), max(V_train, [], "all")])
-title("Velocity of vehicles in platoon of training dataset")
+title("Velocity of vehicles in platoon w/o fault detector")
 grid on
 
-legendStrings = "Vehicle " + string([0:N_platoon-1]);
-legend(legendStrings)
+% legendStrings = "Vehicle " + string([0:N_platoon-1]);
+% legend(legendStrings)
 
-figure(3)
-subplot(211)
+
+subplot(222)
 plot(1:size(X_test, 2), X_test, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Location (m)")
 % ylim([min(X_test, [], "all"), max(X_test, [], "all")])
 ylim([min(X_train, [], "all"), max(X_train, [], "all")])
-title("Location of vehicles in platoon of testing dataset")
+title("Location of vehicles in platoon w/ fault detector")
 grid on
 
-subplot(212)
+subplot(224)
 plot(1:size(V_test, 2), V_test, "LineWidth",1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Velocity (m/s)")
 % ylim([min(V_test, [], "all"), max(V_test, [], "all")])
 ylim([min(V_train, [], "all"), max(V_train, [], "all")])
-title("Velocity of vehicles in platoon of testing dataset")
+title("Velocity of vehicles in platoon w/ fault detector")
 grid on
 
 legendStrings = "Vehicle " + string([0:N_platoon-1]);
 legend(legendStrings)
 
 figure(4)
+subplot(211)
 plot(round(E_train', 8) - headway - idm_para.Length, "LineWidth", 1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Spacing error e_i(t) (m/s)")
-title("Spacing error over time of training dataset")
-legendStrings = "Vehicle " + string([0:N_platoon-1]);
-legend(legendStrings)
+title("Spacing error over time w/o fault detector")
+% legendStrings = "Vehicle " + string([0:N_platoon-1]);
+% legend(legendStrings)
 ylim([min(round(E_train', 8) - headway - idm_para.Length, [], "all"),...
     max(round(E_train', 8) - headway - idm_para.Length, [], "all")])
 grid on
 
-figure(5)
+subplot(212)
 plot(round(E_test', 8) - headway - idm_para.Length, "LineWidth", 1)
 xlabel("Time epoch (0.1 sec)")
 ylabel("Spacing error e_i(t) (m/s)")
-title("Spacing error over time of testing dataset")
+title("Spacing error over time w/ fault detector")
 legendStrings = "Vehicle " + string([0:N_platoon-1]);
 legend(legendStrings)
 ylim([min(round(E_train', 8) - headway - idm_para.Length, [], "all"),...
