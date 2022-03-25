@@ -3,7 +3,7 @@
 
 clear
 
-dataPath = 'dataset\'; % dataset location
+dataPath = 'dataset/'; % dataset location
 s = load(strcat(dataPath,'testdata.mat')); % info of the leading vehicle = s for testing n_sample * m
 s_train = load(strcat(dataPath,'rawdata.mat')); % info of the leading vechicle = s_train for training n_sample * m
 
