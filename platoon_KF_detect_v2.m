@@ -24,11 +24,11 @@ Length = idm_para.Length;
 % number of cooperative vehicles
 N_coop = length(alpha);
 
-shat        = zeros(m,N_sample);
-p.chi       = zeros(1,N_sample); % chi-square statistics
-p.innov  	= zeros(m_measure,N_sample); % normalized innovation sequences
-p.score     = zeros(1,N_sample); % score of OCSVM classifier
-error_idx   = zeros(N_sample,1);
+shat        = zeros(N_platoon,m,N_sample);
+p.chi       = zeros(N_platoon,1,N_sample); % chi-square statistics
+p.innov  	= zeros(N_platoon,m_measure,N_sample); % normalized innovation sequences
+p.score     = zeros(N_platoon,1,N_sample); % score of OCSVM classifier
+error_idx   = zeros(N_platoon,N_sample,1);
 
 % Generate following vehicle location x_f, speed v_f and acceleration a_l based on a
 % car-following model
@@ -54,33 +54,30 @@ end
 X_syn = zeros(N_platoon, N_sample);
 V_syn = zeros(N_platoon, N_sample);
 
-if(~config.bias_correct)
-    s0      = [X(PlatoonConfig.attack_id, 1); V(PlatoonConfig.attack_id, 1)];         % initial state prediction for EKF
-else
-    s0      = [X(PlatoonConfig.attack_id, 1); V(PlatoonConfig.attack_id, 1); (-0.3) * tau * delta_t];
+
+s0 = zeros(N_platoon, m, 1);
+P_hat_stack = ones(N_platoon, m, m);
+
+for i = 1 : N_platoon
+    if(~config.bias_correct)
+        s0(i,:,:) = [X(i, 1); V(i, 1)];         % initial state prediction for EKF
+    else
+        s0(i,:,:) = [X(i, 1); V(i, 1); (-0.3) * tau * delta_t];
+    end
+    P_hat_stack(i, :, :)   = eye(m); 	% initial state prediction covariance for EKF
 end
-
-P_hat   = diag(ones(m,1)); 	% initial state prediction covariance for EKF
-
-if(~config.ukf)
-    x_hat   = s0;
-
-else
-    c       = sqrt(config.alpha^2*(m+config.ki));
-    x_hat.x = s0;
-    x_hat.X = sigmas(x_hat.x,P_hat,c);
-end
+x_hat_stack   = s0;
 
 N       = config.N;         % Time window length for Adaptive EKF
 N_ocsvm = config.N_ocsvm;   % Time window length for OCSVM
 
-Ccum    = diag(zeros(m,1)); % initial weighted sum of outer product of innovation
-Ucum    = diag(zeros(m_measure,1)); % initial estimated measurement noises covariance matrix
-vlist   = zeros(m_measure,m_measure,N);     % stack for innovation sequence with length N
-ulist   = zeros(m_measure,m_measure,N);     % stack for residual sequence with length N
-psum    = zeros(m_measure,1);       % initial sum of N_ocsvm-1 normalized innovation
+Ccum_stack    = zeros(N_platoon, m, m); % initial weighted sum of outer product of innovation
+Ucum_stack    = zeros(N_platoon, m_measure,m_measure); % initial estimated measurement noises covariance matrix
+vlist_stack   = zeros(N_platoon,m_measure,m_measure,N);     % stack for innovation sequence with length N
+ulist_stack   = zeros(N_platoon,m_measure,m_measure,N);     % stack for residual sequence with length N
+psum_stack    = zeros(N_platoon,m_measure,1);       % initial sum of N_ocsvm-1 normalized innovation
 
-p.rmse  = zeros(m_measure,1);       % stack to store RMSE vector
+p.rmse  = zeros(N_platoon,N_sample);       % stack to store RMSE vector
 
 H       = config.H; % measurement matrix
 
@@ -108,45 +105,48 @@ end
 h       = @(s) H*s; % function handle for measurement model
 del_h   = @(s) H;   % function handle for the Jacobian of motion model
 
-anomaly_sequence = zeros(2, N_sample);
-if PlatoonConfig.inject_anomaly && exist("AnomalyConfig", "var")
-    rng(AnomalyConfig.seed); % control random number generator so that it can produce predictable random numbers
-    anomaly_type = AnomalyConfig.anomaly_type;
-    num_type = numel(anomaly_type); % number of anomaly types
-end
-if PlatoonConfig.inject_anomaly && exist("AnomalyConfig", "var")
-    AnomalyConfig.index = zeros(2, N_sample);
-    for i = t + 2 : N_sample
-        seed = rand(2,1);
-        if(AnomalyConfig.index(1,i) ~= 1)&&(AnomalyConfig.index(2,i) ~= 1) % make sure anomaly will not overlapped
-            if ((seed(1) <=AnomalyConfig.percent) || (seed(2) <=AnomalyConfig.percent))
-                msk = (seed <= AnomalyConfig.percent);
-                anomaly_type_idx = randi(num_type); % uniform distribution
-                type = anomaly_type{anomaly_type_idx};
-                dur_length = randi(AnomalyConfig.dur_length); % uniform distribution
-                if (i+dur_length-1 <= N_sample)
-                    AnomalyConfig.index(:,i:i+dur_length-1) = AnomalyConfig.index(:,i:i+dur_length-1)+msk;
+N_attacked = length(PlatoonConfig.attack_id); % number of attacked vehicles
+anomaly_sequence = zeros(N_platoon, 2, N_sample);
+for attacked_veh_idx = 1 : N_attacked
+    attacked_veh = PlatoonConfig.attack_id(attacked_veh_idx);
+    if PlatoonConfig.inject_anomaly && exist("AnomalyConfig", "var")
+%         rng(AnomalyConfig.seed); % control random number generator so that it can produce predictable random numbers
+        anomaly_type = AnomalyConfig.anomaly_type;
+        num_type = numel(anomaly_type); % number of anomaly types
+    end
+    if PlatoonConfig.inject_anomaly && exist("AnomalyConfig", "var")
+        AnomalyConfig.index = zeros(2, N_sample);
+        for i = t + 2 : N_sample
+            seed = rand(2,1);
+            if(AnomalyConfig.index(1,i) ~= 1)&&(AnomalyConfig.index(2,i) ~= 1) % make sure anomaly will not overlapped
+                if ((seed(1) <=AnomalyConfig.percent) || (seed(2) <=AnomalyConfig.percent))
+                    msk = (seed <= AnomalyConfig.percent);
+                    anomaly_type_idx = randi(num_type); % uniform distribution
+                    type = anomaly_type{anomaly_type_idx};
+                    dur_length = randi(AnomalyConfig.dur_length); % uniform distribution
+                    if (i+dur_length-1 <= N_sample)
+                        AnomalyConfig.index(:,i:i+dur_length-1) = AnomalyConfig.index(:,i:i+dur_length-1)+msk;
 
-                    switch type
-                        case 'Noise'
-                            anomaly_sequence(:,i:i+dur_length-1) = anomaly_sequence(:,i:i+dur_length-1) + msk.*AnomalyConfig.NoiseVar * randn(2,dur_length);
-                        case 'Bias'
-                            anomaly_sequence(:,i:i+dur_length-1) = anomaly_sequence(:,i:i+dur_length-1) + msk.*AnomalyConfig.BiasVar * randn(2,1);
-                        case 'Drift'
-                            anomaly_sequence(:,i:i+dur_length-1) = anomaly_sequence(:,i:i+dur_length-1) + (2*randi(2,2,1)-3).*msk...
-                                .*[linspace(0,rand*(AnomalyConfig.DriftMax(1)),dur_length);...
-                                linspace(0,rand*(AnomalyConfig.DriftMax(2)),dur_length)];
+                        switch type
+                            case 'Noise'
+                                anomaly_sequence(attacked_veh, :,i:i+dur_length-1) = reshape(anomaly_sequence(attacked_veh, :,i:i+dur_length-1),m_measure,[]) + msk.*AnomalyConfig.NoiseVar * randn(2,dur_length);
+                            case 'Bias'
+                                anomaly_sequence(attacked_veh, :,i:i+dur_length-1) = reshape(anomaly_sequence(attacked_veh, :,i:i+dur_length-1),m_measure,[]) + msk.*AnomalyConfig.BiasVar * randn(2,1);
+                            case 'Drift'
+                                anomaly_sequence(attacked_veh, :,i:i+dur_length-1) = reshape(anomaly_sequence(attacked_veh, :,i:i+dur_length-1),m_measure,[]) + (2*randi(2,2,1)-3).*msk...
+                                    .*[linspace(0,rand*(AnomalyConfig.DriftMax(1)),dur_length);...
+                                    linspace(0,rand*(AnomalyConfig.DriftMax(2)),dur_length)];
+                        end
                     end
                 end
             end
+
         end
-
+        AnomalyConfig.anomaly_sequence = anomaly_sequence;
     end
-    AnomalyConfig.anomaly_sequence = anomaly_sequence;
 end
-
 s_truth = zeros(2, N_sample);
-s_truth(:, 1) = [X(PlatoonConfig.attack_id, 1); V(PlatoonConfig.attack_id, 1)];
+% s_truth(:, 1) = [X(PlatoonConfig.attack_id, 1); V(PlatoonConfig.attack_id, 1)];
 
 for j = t + 2 : N_sample
     if(rem(j,config.print) == 0)
@@ -171,14 +171,22 @@ for j = t + 2 : N_sample
 
         s = cidm(x_l_syn,v_l_syn,X(i, j - 1),V(i, j - 1),delta_t,t,tau1,idm_para);
 
-        if i == PlatoonConfig.attack_id
+        if ismember(i, PlatoonConfig.attack_id)
             s_truth(:, j) = s;
             if PlatoonConfig.inject_anomaly
-                s = s + anomaly_sequence(:, j) ... % add anomaly into measurement;
+                s = s + reshape(squeeze(anomaly_sequence(i, :, j)),[], 1) ... % add anomaly into measurement;
                     + config.R*randn(m_measure,1); % add noise into measurement;
             end
             s_l = [x_l_syn; v_l_syn];
 
+            
+            x_hat = reshape(x_hat_stack(i, :, :), [], 1);
+            P_hat = squeeze(P_hat_stack(i, :, :));
+            psum = reshape(psum_stack(i, :, :), [], 1);
+            vlist = squeeze(vlist_stack(i, :, :, :));
+            ulist = squeeze(ulist_stack(i,:, :, :));
+            Ccum = squeeze(Ccum_stack(i, :, :));
+            Ucum = squeeze(Ucum_stack(i, :, :));
             if(~config.ukf)
                 [x_next,P_next,x_est,~,p1,K,error1] = ekf(f,h,s,del_f,del_h,x_hat,P_hat,s_l,s_truth(:,j),CF,@dde_his,(i-1)*delta_t,i*delta_t,config,psum);
             elseif(config.ukf)
@@ -191,14 +199,15 @@ for j = t + 2 : N_sample
             ulist(:,:,1:N-1)    = ulist(:,:,2:end);         %shift left
             ulist(:,:,N)        = p1.residual*p1.residual';
 
-            p.rmse(i) = p1.RMSE;
+            p.rmse(i, j) = p1.RMSE;
             % Adaptively estimate covariance matrices Q and R based on innovation
             % and residual sequences
             for k = 1:N
                 Ccum = Ccum + config.weight(k) * (K*squeeze(vlist(:,:,k))*K');
                 Ucum = Ucum + config.weight(k) * ( squeeze(ulist(:,:,k)) + config.H * P_next * config.H' );
             end
-
+            
+            % NOT COMPLETED FOR ADAPTIVE EKF!!! (FURTHUR WORK)
             if(config.adptQ)
                 config.Q = Ccum; % compute adaptively Q based on innovation sequence
             end
@@ -209,23 +218,31 @@ for j = t + 2 : N_sample
             Ccum = diag(zeros(m,1));            % reset sum every loop
             Ucum = diag(zeros(m_measure,1));    % reset sum every loop
 
-            shat(:,j)       = x_est;
-            error_idx(j)    = error1;
-            p.chi(j)        = p1.chi;
-            p.innov(:,j)    = p1.innov;
+            shat(i,:,j)       = x_est;
+            error_idx(i, j)    = error1;
+            p.chi(i, :, j)        = p1.chi;
+            p.innov(i, :,j)    = p1.innov;
 
             if(config.OCSVM)
-                p.score(j)  = p1.score;
+                p.score(i, :, j)  = p1.score;
             end
 
             if(j>=N_ocsvm-1)
-                psum = sum(p.innov(:,j-N_ocsvm+2:j),2);
+                psum = sum(p.innov(i,:,j-N_ocsvm+2:j),3);
             else
-                psum = sum(p.innov(:,1:j),2);
+                psum = sum(p.innov(i,:,1:j),3);
             end
 
             x_hat = x_next;
             P_hat = P_next;
+
+            x_hat_stack(i, :, :) = x_hat;
+            P_hat_stack(i, :, :) = P_hat;
+            psum_stack(i, :, :) = psum;
+            vlist_stack(i, :, :, :) = vlist;
+            ulist_stack(i,:, :, :) = ulist;
+            Ccum_stack(i, :, :) = Ccum;
+            Ucum_stack(i, :, :) = Ucum;
 
             % Ignore warining
             [~, MSGID] = lastwarn();
